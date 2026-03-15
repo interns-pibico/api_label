@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Planes y Precios{% endblock %}
+
+{% block body %}
+<script>window.LABEL_ROOT = '{{ root_path }}';</script>
+
+<nav class="pub-nav">
+  <div class="pub-nav-inner">
+    <a href="{{ root_path }}/" class="pub-nav-logo">
+      <div style="width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-head);font-weight:700;font-size:1rem">L</div>
+      <span>Label Studio</span>
+    </a>
+    <div class="pub-nav-actions">
+      <a href="{{ root_path }}/login" class="btn btn-ghost btn-sm">Iniciar sesion</a>
+    </div>
+  </div>
+</nav>
+
+<div class="pricing-page">
+
+  <div class="pricing-header">
+    <h1 class="pricing-title">Elige tu plan</h1>
+    <p class="pricing-subtitle">
+      Acceso completo al sistema de etiquetas de producto.<br>
+      Sin limites de productos, etiquetas ni descargas.
+    </p>
+  </div>
+
+  <div class="pricing-grid">
+
+    {# ── Card 1: Mensual ─────────────────────────────────── #}
+    <div class="pricing-card">
+      <div class="pricing-card-header">
+        <div class="pricing-plan-name">Mensual</div>
+        <div class="pricing-plan-desc">Perfecto para probar</div>
+      </div>
+      <div class="pricing-card-price">
+        <span class="pricing-amount">19,90</span>
+        <span class="pricing-currency">EUR</span>
+        <span class="pricing-period">/ mes</span>
+      </div>
+      <ul class="pricing-features">
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Productos ilimitados
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Etiquetas ilimitadas
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Descarga PDF/HTML
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Escaner de codigo de barras
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Soporte por email
+        </li>
+      </ul>
+      <a href="{{ root_path }}/register?plan=monthly" class="btn btn-outline btn-block btn-lg pricing-cta">
+        Empezar ahora
+      </a>
+    </div>
+
+    {# ── Card 2: Semestral (destacada) ───────────────────── #}
+    <div class="pricing-card pricing-card--featured">
+      <div class="pricing-badge">Mas popular</div>
+      <div class="pricing-card-header">
+        <div class="pricing-plan-name">Semestral</div>
+        <div class="pricing-plan-desc">6 meses con descuento</div>
+      </div>
+      <div class="pricing-card-price">
+        <span class="pricing-amount">14,90</span>
+        <span class="pricing-currency">EUR</span>
+        <span class="pricing-period">/ mes</span>
+      </div>
+      <div class="pricing-billing-note">
+        89,40 EUR facturado cada 6 meses
+        <span class="pricing-savings">Ahorras 25%</span>
+      </div>
+      <ul class="pricing-features">
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Productos ilimitados
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Etiquetas ilimitadas
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Descarga PDF/HTML
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Escaner de codigo de barras
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Soporte prioritario
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Tokens API incluidos
+        </li>
+      </ul>
+      <a href="{{ root_path }}/register?plan=semiannual" class="btn btn-primary btn-block btn-lg pricing-cta">
+        Empezar ahora
+      </a>
+    </div>
+
+    {# ── Card 3: Anual ───────────────────────────────────── #}
+    <div class="pricing-card">
+      <div class="pricing-card-header">
+        <div class="pricing-plan-name">Anual</div>
+        <div class="pricing-plan-desc">Mejor precio por mes</div>
+      </div>
+      <div class="pricing-card-price">
+        <span class="pricing-amount">11,90</span>
+        <span class="pricing-currency">EUR</span>
+        <span class="pricing-period">/ mes</span>
+      </div>
+      <div class="pricing-billing-note">
+        142,80 EUR facturado anualmente
+        <span class="pricing-savings">Ahorras 40%</span>
+      </div>
+      <ul class="pricing-features">
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Productos ilimitados
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Etiquetas ilimitadas
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Descarga PDF/HTML
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Escaner de codigo de barras
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Soporte prioritario
+        </li>
+        <li>
+          <svg class="pricing-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Tokens API incluidos
+        </li>
+      </ul>
+      <a href="{{ root_path }}/register?plan=annual" class="btn btn-outline btn-block btn-lg pricing-cta">
+        Empezar ahora
+      </a>
+    </div>
+
+  </div>{# end pricing-grid #}
+
+  <div class="pricing-footer-section">
+    <p class="pricing-footer-text">
+      Todos los planes incluyen acceso completo a todas las funcionalidades.<br>
+      <a href="{{ root_path }}/try">Prueba gratis</a> con hasta 3 productos sin necesidad de registro.
+    </p>
+  </div>
+
+</div>{# end pricing-page #}
+
+{% endblock %}{# end block body #}

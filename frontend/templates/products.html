@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block title %}Productos{% endblock %}
+{% set active_page = "products" %}
+
+{% block content %}
+<div class="desktop-page-header flex items-center justify-between">
+  <h1>Mis Productos</h1>
+  <button id="btn-new-product" class="btn btn-primary btn-sm hidden">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Nuevo
+  </button>
+</div>
+
+
+{# ── Sector selector view ── #}
+<div id="sector-view">
+  <div class="sector-selector-header">
+    <p class="sector-selector-title">Selecciona un sector para ver tus productos</p>
+  </div>
+  <div id="sector-grid" class="sector-selector">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <span>Cargando sectores...</span>
+    </div>
+  </div>
+</div>
+
+{# ── Product list view (hidden until sector selected) ── #}
+<div id="products-view" class="hidden">
+
+  {# Sector breadcrumb #}
+  <div class="sector-breadcrumb" id="sector-breadcrumb">
+    <span id="sector-breadcrumb-label"></span>
+    <button id="btn-change-sector" class="sector-breadcrumb-clear" title="Cambiar sector" aria-label="Cambiar sector">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  {# Search + filter #}
+  <div class="search-bar">
+    <div class="search-input-wrap">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" id="search-input" class="form-control" placeholder="Buscar por nombre, marca o barcode...">
+    </div>
+    <select id="category-filter" class="form-control" style="max-width:200px">
+      <option value="">Todas las categorías</option>
+    </select>
+  </div>
+
+  {# Products list #}
+  <div id="products-container">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <span>Cargando productos...</span>
+    </div>
+  </div>
+
+  {# Pagination #}
+  <div id="pagination" class="pagination"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (!Auth.requireAuth()) return;
+
+  /* ── State ── */
+  let currentPage    = 1;
+  let searchTimeout  = null;
+  let selectedCategory = '';
+  let activeSector   = null;   // { sector, label, icon }
+
+  /* ── DOM refs ── */
+  const sectorView   = document.getElementById('sector-view');
+  const sectorGrid   = document.getElementById('sector-grid');
+  const productsView = document.getElementById('products-view');
+  const breadcrumb   = document.getElementById('sector-breadcrumb');
+  const breadcrumbLbl= document.getElementById('sector-breadcrumb-label');
+  const container    = document.getElementById('products-container');
+  const pagination   = document.getElementById('pagination');
+  const searchInput  = document.getElementById('search-input');
+  const catFilter    = document.getElementById('category-filter');
+
+  /* ── New-product button wires both desktop + mobile ── */
+  function goToNew() {
+    const sector = activeSector ? activeSector.sector : '';
+    sessionStorage.setItem('activeSector', JSON.stringify(activeSector));
+    window.location.href = ROOT + '/products/new' + (sector ? '?sector=' + encodeURIComponent(sector) : '');
+  }
+  document.getElementById('btn-new-product')?.addEventListener('click', goToNew);
+
+  /* ── Load sectors ── */
+  async function loadSectors() {
+    try {
+      const sectors = await api.get('/api/v1/products/sectors');
+      if (!sectors || sectors.length === 0) {
+        // No sectors — show all products without filter
+        enterProductsView(null);
+        return;
+      }
+      renderSectorGrid(sectors);
+    } catch(e) {
+      sectorGrid.innerHTML = `<div class="alert alert-error">${e.message || 'Error cargando sectores'}</div>`;
+    }
+  }
+
+  /* Map sector codes to stock image paths (add images to /static/img/sectors/) */
+  const SECTOR_IMAGES = {
+    'alimentacion': null,
+    'cosmetica':    null,
+    'ferreteria':   null,
+    'electronica':  null,
+  };
+
+  function renderSectorGrid(sectors) {
+    sectorGrid.innerHTML = '';
+    sectors.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'sector-card';
+      const imgSrc = SECTOR_IMAGES[s.sector];
+      const imgHtml = imgSrc
+        ? `<img src="${imgSrc}" alt="${s.label}">`
+        : `<span class="sector-icon-fallback">${s.icon || '📦'}</span>`;
+      card.innerHTML = `
+        <div class="sector-card-title">${s.label}</div>
+        <div class="sector-card-img">${imgHtml}</div>
+        <div class="sector-count">${s.count} ${s.count === 1 ? 'producto' : 'productos'}</div>`;
+      card.addEventListener('click', () => enterProductsView(s));
+      sectorGrid.appendChild(card);
+    });
+  }
+
+  /* ── Enter the products view for a given sector (or null = all) ── */
+  function enterProductsView(sector) {
+    activeSector = sector;
+    sessionStorage.setItem('activeSector', JSON.stringify(sector));
+    document.getElementById('btn-new-product')?.classList.remove('hidden');
+
+    // Update breadcrumb
+    if (sector) {
+      breadcrumbLbl.innerHTML = `<span class="sector-breadcrumb-icon">${sector.icon || '📦'}</span>${sector.label}`;
+    } else {
+      breadcrumbLbl.innerHTML = 'Todos los sectores';
+    }
+
+    // Show products view, hide sector view
+    sectorView.classList.add('hidden');
+    productsView.classList.remove('hidden');
+
+    // Reset filters
+    selectedCategory = '';
+    catFilter.innerHTML = '<option value="">Todas las categorías</option>';
+    searchInput.value = '';
+    currentPage = 1;
+
+    loadCategories();
+    loadProducts(1);
+  }
+
+  /* ── Go back to sector selector ── */
+  function backToSectorSelector() {
+    sessionStorage.removeItem('activeSector');
+    activeSector = null;
+    productsView.classList.add('hidden');
+    sectorView.classList.remove('hidden');
+    document.getElementById('btn-new-product')?.classList.add('hidden');
+    // Reload sectors in case counts changed
+    loadSectors();
+  }
+
+  document.getElementById('btn-change-sector')?.addEventListener('click', backToSectorSelector);
+
+  /* ── Load categories filtered by active sector ── */
+  async function loadCategories() {
+    try {
+      const sectorParam = activeSector ? `&sector=${encodeURIComponent(activeSector.sector)}` : '';
+      const cats = await api.get(`/api/v1/categories?page=1&page_size=100${sectorParam}`);
+      catFilter.innerHTML = '<option value="">Todas las categorías</option>';
+      if (cats && cats.items) {
+        cats.items.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          catFilter.appendChild(opt);
+        });
+      }
+    } catch {}
+  }
+
+  /* ── Load products filtered by active sector ── */
+  async function loadProducts(page = 1) {
+    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div><span>Cargando...</span></div>`;
+    try {
+      const sectorParam = activeSector ? `&sector=${encodeURIComponent(activeSector.sector)}` : '';
+      let url = `/api/v1/products?page=${page}&page_size=15${sectorParam}`;
+      const data = await api.get(url);
+
+      if (!data || data.items.length === 0) {
+        const sectorLabel = activeSector ? ` en ${activeSector.label}` : '';
+        container.innerHTML = `
+          <div class="empty-state">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+            </svg>
+            <div class="empty-state-title">Sin productos${sectorLabel}</div>
+            <div class="empty-state-desc">Crea tu primer producto para empezar a generar etiquetas</div>
+            <button onclick="goToNewFromEmpty()" class="btn btn-primary mt-4">Crear producto</button>
+          </div>`;
+        pagination.innerHTML = '';
+        return;
+      }
+
+      // Client-side filter
+      let items = data.items;
+      const search = searchInput.value.trim().toLowerCase();
+      if (search) {
+        items = items.filter(p =>
+          (p.name || '').toLowerCase().includes(search) ||
+          (p.brand || '').toLowerCase().includes(search) ||
+          (p.barcode || '').toLowerCase().includes(search)
+        );
+      }
+      if (selectedCategory) {
+        items = items.filter(p => p.category_id === selectedCategory);
+      }
+
+      if (items.length === 0) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-title">Sin resultados</div><div class="empty-state-desc">Prueba con otros términos de búsqueda</div></div>`;
+        pagination.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Código</th>
+                <th>Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody"></tbody>
+          </table>
+        </div>`;
+
+      const tbody = document.getElementById('products-tbody');
+      items.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>
+            <div style="font-weight:600;font-size:0.9rem">${p.name}</div>
+            <div class="td-muted">${p.brand || 'Sin marca'}</div>
+          </td>
+          <td class="mono td-muted">${p.barcode || '—'}</td>
+          <td>
+            <span class="badge ${p.is_active ? 'badge-success' : 'badge-neutral'}">
+              ${p.is_active ? 'Activo' : 'Inactivo'}
+            </span>
+          </td>
+          <td>
+            <div class="flex gap-1">
+              <a href="${ROOT}/products/${p.id}" class="btn btn-ghost btn-icon btn-sm" title="Ver detalle">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </a>
+              <a href="${ROOT}/products/${p.id}/edit" class="btn btn-ghost btn-icon btn-sm" title="Editar">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </a>
+            </div>
+          </td>`;
+        tbody.appendChild(tr);
+      });
+
+      renderPagination(pagination, { page: data.page, pages: data.pages }, (p) => {
+        currentPage = p;
+        loadProducts(p);
+      });
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error">${e.message || 'Error cargando productos'}</div>`;
+    }
+  }
+
+  // Exposed for inline onclick in empty state
+  window.goToNewFromEmpty = goToNew;
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => { currentPage = 1; loadProducts(1); }, 350);
+  });
+
+  catFilter.addEventListener('change', () => {
+    selectedCategory = catFilter.value;
+    currentPage = 1;
+    loadProducts(1);
+  });
+
+  /* ── Bootstrap: always show sector selector first ── */
+  sessionStorage.removeItem('activeSector');
+  if (true) {
+    // Show sector selector
+    loadSectors();
+  }
+
+})();
+</script>
+{% endblock %}

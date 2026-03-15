@@ -1,0 +1,579 @@
+{% extends "base.html" %}
+{% block title %}Detalle Cesta{% endblock %}
+{% set active_page = "baskets" %}
+
+{% block head %}
+<script src="{{ root_path }}/static/vendor/zxing/zxing.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div x-data="basketDetailApp('{{ basket_id }}')" x-init="init()"
+     class="flex flex-col" style="min-height:calc(100vh - 80px)">
+
+  <!-- Header -->
+  <div class="p-6 pb-0">
+    <div class="mb-2">
+      <a href="{{ root_path }}/baskets" style="color:var(--primary);font-size:0.875rem;text-decoration:none">
+        ← Cestas
+      </a>
+    </div>
+    <div class="flex items-center gap-3 mb-4">
+      <div style="width:2.5rem;height:2.5rem;background:var(--primary-light,#dbeeff);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0">🛒</div>
+      <!-- Inline editable basket name -->
+      <div x-show="!editingName" @click="startEditName()"
+           class="flex items-center gap-2" style="cursor:pointer">
+        <h1 style="font-size:1.5rem;font-weight:700;color:var(--text)" x-text="basket.name"></h1>
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"
+             style="color:var(--text-muted);opacity:0.6">
+          <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+        </svg>
+      </div>
+      <input x-show="editingName" x-model="editName" type="text"
+             style="font-size:1.5rem;font-weight:700;border:none;border-bottom:2px solid var(--primary);outline:none;background:transparent;color:var(--text)"
+             @keydown.enter="saveName()"
+             @keydown.escape="editingName = false"
+             @blur="saveName()"
+             x-ref="nameInput"
+             maxlength="100">
+    </div>
+
+    <!-- Item count indicator -->
+    <div class="flex items-center gap-2 mb-4">
+      <div style="font-size:0.8rem;color:var(--text-muted)">
+        <span x-text="items.length"></span>/10 productos
+      </div>
+      <div style="flex:1;max-width:120px;height:4px;background:var(--bg-secondary);border-radius:2px;overflow:hidden">
+        <div style="height:100%;border-radius:2px;transition:width 0.3s"
+             :style="'width:' + (items.length * 10) + '%;background:' + (items.length >= 10 ? '#CB4154' : 'var(--primary)')"></div>
+      </div>
+    </div>
+
+    <!-- Search bar -->
+    <div x-show="items.length < 10" class="relative mb-6">
+      <div class="flex gap-2">
+        <div class="relative" style="flex:1">
+          <input x-model="searchQuery" type="text"
+                 placeholder="Buscar producto (ej: leche entera, 8410...)"
+                 class="form-control" style="width:100%;padding-right:2.5rem"
+                 @input.debounce.400ms="searchProducts()"
+                 @keydown.escape="searchResults = []"
+                 @focus="if(searchQuery.length >= 2) searchProducts()">
+          <div style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%)">
+            <svg x-show="!searching" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                 viewBox="0 0 24 24" style="color:var(--text-muted)">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <div x-show="searching" class="spinner" style="width:16px;height:16px;border-width:2px"></div>
+          </div>
+          <!-- Search dropdown -->
+          <div x-show="searchResults.length > 0" class="search-dropdown" @click.outside="searchResults = []">
+            <template x-for="result in searchResults" :key="result.product_name + (result.source || '')">
+              <div class="search-dropdown-item" @click="addFromSearch(result)">
+                <img x-show="result.imagen_url" :src="result.imagen_url"
+                     style="width:2.5rem;height:2.5rem;object-fit:contain;border-radius:4px;background:#f8f9fa" alt="">
+                <div x-show="!result.imagen_url"
+                     style="width:2.5rem;height:2.5rem;background:var(--bg-secondary);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0"
+                     x-text="result.source === 'mis_productos' ? '🏷️' : '🛒'"></div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:0.875rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                       x-text="result.product_name"></div>
+                  <div style="font-size:0.75rem;color:var(--text-muted)"
+                       x-text="result.source === 'mis_productos' ? 'Mi producto' : (result.supermarket || '')"></div>
+                </div>
+                <span x-show="result.price"
+                      style="font-size:0.875rem;font-weight:600;color:var(--primary);white-space:nowrap"
+                      x-text="result.price ? result.price.toFixed(2) + ' €' : ''"></span>
+                <span x-show="result.source === 'mis_productos'"
+                      style="font-size:0.65rem;padding:0.15rem 0.4rem;background:var(--primary-light,#dbeeff);color:var(--primary);border-radius:3px;white-space:nowrap">
+                  Mi producto
+                </span>
+              </div>
+            </template>
+            <div class="search-dropdown-item" style="justify-content:center;color:var(--text-muted);font-size:0.875rem"
+                 @click="addManual()">
+              + Añadir "<span x-text="searchQuery" style="font-weight:500"></span>" sin oferta
+            </div>
+          </div>
+        </div>
+        <!-- Barcode scan button -->
+        <button @click="startScan()" class="btn btn-outline" style="padding:0 1rem;flex-shrink:0"
+                title="Escanear código de barras">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+            <line x1="7" y1="8" x2="7" y2="16"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Limit banner -->
+    <div x-show="items.length >= 10" class="alert alert-warning mb-4" style="font-size:0.875rem">
+      Has alcanzado el límite de 10 productos por cesta.
+    </div>
+  </div>
+
+  <!-- Scanner overlay -->
+  <div x-show="scanning" x-cloak class="alpine-modal">
+    <div class="alpine-modal-inner" style="background:rgba(0,0,0,0.92);flex-direction:column">
+      <div style="color:white;font-size:1.25rem;font-weight:600;margin-bottom:1.5rem">Escanea el código de barras</div>
+      <div style="position:relative">
+        <video x-ref="videoEl" autoplay playsinline muted
+               style="border-radius:0.75rem;width:320px;height:240px;object-fit:cover;background:#000"></video>
+        <div style="position:absolute;inset:0;border:2px solid #4682B4;border-radius:0.75rem;pointer-events:none"></div>
+      </div>
+      <button @click="stopScan()" class="btn btn-outline"
+              style="margin-top:1.5rem;color:white;border-color:white;background:transparent">
+        Cancelar
+      </button>
+    </div>
+  </div>
+
+  <!-- Items list -->
+  <div style="flex:1;padding:0 1.5rem 1.5rem">
+    <!-- Loading -->
+    <div x-show="loading" class="flex justify-center py-12">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- Empty -->
+    <div x-show="!loading && items.length === 0" class="text-center py-12"
+         style="color:var(--text-muted)">
+      <div style="font-size:3rem;margin-bottom:0.75rem">📦</div>
+      <p style="font-size:1.1rem">No hay productos. ¡Busca arriba para añadir!</p>
+    </div>
+
+    <!-- Products -->
+    <div x-show="!loading" style="display:flex;flex-direction:column;gap:1rem">
+      <template x-for="item in items" :key="item.id">
+        <div class="card p-4">
+          <div style="display:flex;align-items:flex-start;gap:1rem">
+            <!-- Product image -->
+            <img x-show="item.imagen_url" :src="item.imagen_url"
+                 style="width:5rem;height:5rem;object-fit:contain;border-radius:0.5rem;background:#f8f9fa;flex-shrink:0"
+                 alt="" @error="$event.target.style.display='none'; $event.target.nextElementSibling.style.display='flex'">
+            <div x-show="!item.imagen_url"
+                 style="width:5rem;height:5rem;background:var(--bg-secondary);border-radius:0.5rem;display:flex;align-items:center;justify-content:center;font-size:2rem;flex-shrink:0">
+              🛒
+            </div>
+
+            <!-- Product info -->
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;color:var(--text);font-size:1rem;margin-bottom:0.35rem;line-height:1.3" x-text="item.product_name"></div>
+
+              <!-- Barcode badge (clickable to copy) -->
+              <div x-show="item.barcode" style="margin-bottom:0.5rem">
+                <span @click.stop="copyBarcode(item.barcode)"
+                      style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.75rem;padding:0.2rem 0.5rem;background:var(--bg-secondary);border-radius:4px;cursor:pointer;color:var(--text-muted);transition:background 0.15s"
+                      @mouseenter="$event.currentTarget.style.background='var(--primary-light,#dbeeff)'"
+                      @mouseleave="$event.currentTarget.style.background='var(--bg-secondary)'"
+                      title="Copiar código de barras">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                  </svg>
+                  <span x-text="'EAN: ' + item.barcode"></span>
+                  <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="opacity:0.5">
+                    <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                  </svg>
+                </span>
+              </div>
+
+              <!-- Price row -->
+              <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem">
+                <!-- Best offer price -->
+                <template x-if="item.best_offer">
+                  <div style="display:flex;align-items:baseline;gap:0.5rem">
+                    <span style="font-size:1.25rem;font-weight:700;color:var(--primary)"
+                          x-text="item.best_offer.price.toFixed(2) + ' €'"></span>
+                    <span x-show="item.best_offer.original_price && item.best_offer.original_price > item.best_offer.price"
+                          style="font-size:0.8rem;text-decoration:line-through;color:var(--text-muted)"
+                          x-text="item.best_offer.original_price?.toFixed(2) + ' €'"></span>
+                    <span x-show="item.best_offer.discount_percent"
+                          style="font-size:0.7rem;font-weight:600;color:#CB4154;background:#fef2f2;padding:0.1rem 0.4rem;border-radius:3px"
+                          x-text="'-' + item.best_offer.discount_percent?.toFixed(0) + '%'"></span>
+                  </div>
+                </template>
+                <template x-if="!item.best_offer">
+                  <span style="font-size:0.875rem;color:var(--text-muted);font-style:italic">Sin precio disponible</span>
+                </template>
+              </div>
+
+              <!-- Supermarket source -->
+              <div x-show="item.best_offer" style="display:flex;align-items:center;gap:0.35rem;margin-bottom:0.5rem">
+                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--text-muted)">
+                  <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/>
+                </svg>
+                <span style="font-size:0.75rem;color:var(--text-muted)" x-text="item.best_offer?.supermarket"></span>
+              </div>
+
+              <!-- Action buttons -->
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+                <!-- Toggle all offers -->
+                <button x-show="item.all_offers?.length > 1"
+                        @click="item._showOffers = !item._showOffers"
+                        style="font-size:0.75rem;color:var(--primary);background:none;border:1px solid var(--primary);cursor:pointer;padding:0.2rem 0.6rem;border-radius:4px;transition:background 0.15s"
+                        @mouseenter="$event.currentTarget.style.background='var(--primary-light,#dbeeff)'"
+                        @mouseleave="$event.currentTarget.style.background='transparent'">
+                  <span x-text="item._showOffers ? 'Ocultar precios' : 'Comparar ' + item.all_offers.length + ' precios'"></span>
+                </button>
+
+                <!-- Generate label link -->
+                <a :href="ROOT + '/products/new?name=' + encodeURIComponent(item.product_name) + (item.barcode ? '&barcode=' + item.barcode : '')"
+                   @click.stop
+                   style="font-size:0.75rem;color:var(--text-muted);border:1px solid var(--border-color,#e0e0e0);padding:0.2rem 0.6rem;border-radius:4px;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;transition:color 0.15s,border-color 0.15s"
+                   @mouseenter="$event.currentTarget.style.color='var(--primary)';$event.currentTarget.style.borderColor='var(--primary)'"
+                   @mouseleave="$event.currentTarget.style.color='var(--text-muted)';$event.currentTarget.style.borderColor='var(--border-color,#e0e0e0)'"
+                   title="Generar etiqueta para este producto">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/>
+                  </svg>
+                  Etiqueta
+                </a>
+
+                <!-- View offer link -->
+                <a x-show="item.best_offer?.offer_url"
+                   :href="item.best_offer?.offer_url" target="_blank" rel="noopener"
+                   @click.stop
+                   style="font-size:0.75rem;color:var(--text-muted);border:1px solid var(--border-color,#e0e0e0);padding:0.2rem 0.6rem;border-radius:4px;text-decoration:none;display:inline-flex;align-items:center;gap:0.3rem;transition:color 0.15s,border-color 0.15s"
+                   @mouseenter="$event.currentTarget.style.color='var(--primary)';$event.currentTarget.style.borderColor='var(--primary)'"
+                   @mouseleave="$event.currentTarget.style.color='var(--text-muted)';$event.currentTarget.style.borderColor='var(--border-color,#e0e0e0)'"
+                   title="Ver en tienda">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+                  </svg>
+                  Ver oferta
+                </a>
+              </div>
+
+              <!-- All offers comparison table -->
+              <div x-show="item._showOffers && item.all_offers?.length > 1" style="margin-top:0.75rem">
+                <table class="offer-table">
+                  <thead>
+                    <tr>
+                      <th>Supermercado</th>
+                      <th>Precio</th>
+                      <th>Descuento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="offer in item.all_offers" :key="offer.supermarket + offer.price">
+                      <tr :style="offer.price === item.best_offer?.price ? 'background:var(--primary-light,#dbeeff)' : ''">
+                        <td x-text="offer.supermarket"></td>
+                        <td style="font-weight:600" x-text="offer.price?.toFixed(2) + ' €'"></td>
+                        <td x-text="offer.discount_percent ? offer.discount_percent.toFixed(0) + '%' : '—'"></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Remove button -->
+            <button @click="removeItem(item.id)"
+                    style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0.25rem;flex-shrink:0;transition:color 0.15s"
+                    @mouseenter="$event.currentTarget.style.color='#CB4154'"
+                    @mouseleave="$event.currentTarget.style.color=''"
+                    title="Eliminar producto">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Sticky bottom bar -->
+  <div x-show="items.length > 0" class="basket-sticky-bar">
+    <div>
+      <div style="font-size:0.8rem;color:var(--text-muted)">Total estimado (mejores precios)</div>
+      <div style="font-size:1.75rem;font-weight:700;color:var(--text)"
+           x-text="totalEstimated !== null ? totalEstimated.toFixed(2) + ' €' : '—'"></div>
+      <div style="font-size:0.75rem;color:var(--text-muted);line-height:1.4">
+        <span x-text="items.filter(i => i.best_offer).length"></span> de
+        <span x-text="items.length"></span> con precio
+        <template x-if="items.filter(i => !i.best_offer).length > 0">
+          <span> · <span x-text="items.filter(i => !i.best_offer).length"></span> sin precio</span>
+        </template>
+      </div>
+    </div>
+    <button @click="downloadPdf()" class="btn btn-primary" style="display:flex;align-items:center;gap:0.5rem">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Descargar PDF
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const BASKET_ID = '{{ basket_id }}';
+
+function basketDetailApp(basketId) {
+  return {
+    basket: { name: '', id: basketId },
+    items: [],
+    loading: true,
+    editingName: false,
+    editName: '',
+    searchQuery: '',
+    searchResults: [],
+    searching: false,
+    scanning: false,
+    _codeReader: null,
+    _scanInterval: null,
+    totalEstimated: null,
+
+    async init() {
+      if (!Auth.requireAuth()) return;
+      await this.loadDetail();
+    },
+
+    async loadDetail() {
+      this.loading = true;
+      const token = Auth.getToken();
+      try {
+        const r = await fetch(`${ROOT}/api/v1/baskets/${basketId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (r.status === 403) { window.location.href = `${ROOT}/pricing`; return; }
+        if (r.status === 404) { window.location.href = `${ROOT}/baskets`; return; }
+        if (r.status === 401) { Auth.removeToken(); window.location.href = `${ROOT}/login`; return; }
+        const data = await r.json();
+        this.basket = { id: data.id, name: data.name };
+        this.items = data.items.map(i => ({ ...i, _showOffers: false }));
+        this.totalEstimated = data.total_estimated;
+      } catch(e) {
+        console.error('loadDetail error:', e);
+      }
+      this.loading = false;
+    },
+
+    startEditName() {
+      this.editName = this.basket.name;
+      this.editingName = true;
+      this.$nextTick(() => this.$refs.nameInput && this.$refs.nameInput.focus());
+    },
+
+    async saveName() {
+      if (!this.editName.trim() || this.editName === this.basket.name) {
+        this.editingName = false;
+        return;
+      }
+      const token = Auth.getToken();
+      try {
+        const r = await fetch(`${ROOT}/api/v1/baskets/${basketId}`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: this.editName.trim() })
+        });
+        if (r.ok) {
+          const d = await r.json();
+          this.basket.name = d.name;
+        }
+      } catch(e) {
+        console.error('saveName error:', e);
+      }
+      this.editingName = false;
+    },
+
+    async searchProducts() {
+      if (this.searchQuery.length < 2) { this.searchResults = []; return; }
+      this.searching = true;
+      const token = Auth.getToken();
+      try {
+        const r = await fetch(
+          `${ROOT}/api/v1/baskets/search?q=${encodeURIComponent(this.searchQuery)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (r.ok) this.searchResults = await r.json();
+      } catch(e) {
+        console.error('searchProducts error:', e);
+      }
+      this.searching = false;
+    },
+
+    async addFromSearch(result) {
+      this.searchResults = [];
+      this.searchQuery = '';
+      await this.addItemToBasket({
+        product_name: result.product_name,
+        barcode: result.barcode || null,
+        search_query: result.product_name,
+        imagen_url: result.imagen_url || null,
+      });
+    },
+
+    async addManual() {
+      const name = this.searchQuery.trim();
+      this.searchResults = [];
+      this.searchQuery = '';
+      if (!name) return;
+      await this.addItemToBasket({ product_name: name, search_query: name });
+    },
+
+    async addItemToBasket(itemData) {
+      if (this.items.length >= 10) {
+        Toast.error('Límite de 10 productos por cesta alcanzado');
+        return;
+      }
+      const token = Auth.getToken();
+      try {
+        const r = await fetch(`${ROOT}/api/v1/baskets/${basketId}/items`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(itemData)
+        });
+        if (r.ok) {
+          const item = await r.json();
+          this.items.push({ ...item, _showOffers: false });
+          this._recalcTotal();
+          Toast.success(`"${item.product_name}" añadido a la cesta`);
+        } else {
+          const err = await r.json().catch(() => ({}));
+          Toast.error(err.detail || 'Error al añadir producto');
+        }
+      } catch(e) {
+        Toast.error('Error de conexión');
+      }
+    },
+
+    async removeItem(itemId) {
+      const token = Auth.getToken();
+      try {
+        const r = await fetch(`${ROOT}/api/v1/baskets/${basketId}/items/${itemId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (r.ok || r.status === 204) {
+          this.items = this.items.filter(i => i.id !== itemId);
+          this._recalcTotal();
+        }
+      } catch(e) {
+        Toast.error('Error al eliminar el producto');
+      }
+    },
+
+    copyBarcode(code) {
+      navigator.clipboard.writeText(code).then(() => {
+        Toast.success('Código de barras copiado: ' + code);
+      }).catch(() => {
+        // Fallback for older browsers
+        const input = document.createElement('input');
+        input.value = code;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        Toast.success('Código de barras copiado: ' + code);
+      });
+    },
+
+    _recalcTotal() {
+      const prices = this.items.filter(i => i.best_offer).map(i => i.best_offer.price);
+      this.totalEstimated = prices.length ? prices.reduce((a, b) => a + b, 0) : null;
+    },
+
+    downloadPdf() {
+      const token = Auth.getToken();
+      Toast.info('Generando PDF...');
+      fetch(`${ROOT}/api/v1/baskets/${basketId}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(r => {
+          if (!r.ok) throw new Error('Error al generar PDF');
+          return r.blob();
+        })
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `cesta_${this.basket.name.replace(/\s+/g, '_')}.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        })
+        .catch(e => Toast.error(e.message || 'Error al descargar PDF'));
+    },
+
+    async startScan() {
+      this.scanning = true;
+      await this.$nextTick();
+      try {
+        if ('BarcodeDetector' in window) {
+          let supported = [];
+          try { supported = await BarcodeDetector.getSupportedFormats(); } catch {}
+          if (supported.includes('ean_13')) {
+            const wanted = ['ean_13', 'ean_8', 'code_128', 'upc_a'];
+            const detector = new BarcodeDetector({
+              formats: wanted.filter(f => supported.includes(f))
+            });
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: 'environment' } }
+            });
+            this.$refs.videoEl.srcObject = stream;
+            await this.$refs.videoEl.play();
+            this._scanInterval = setInterval(async () => {
+              if (!this.$refs.videoEl || this.$refs.videoEl.readyState < 2) return;
+              try {
+                const codes = await detector.detect(this.$refs.videoEl);
+                if (codes.length > 0) {
+                  const code = codes[0].rawValue;
+                  this.stopScan();
+                  this.searchQuery = code;
+                  await this.searchProducts();
+                }
+              } catch {}
+            }, 250);
+            return;
+          }
+        }
+        if (typeof ZXing === 'undefined') {
+          Toast.error('Librería de escaneo no disponible');
+          this.scanning = false;
+          return;
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } }
+        });
+        this.$refs.videoEl.srcObject = stream;
+        await this.$refs.videoEl.play();
+        const zReader = new ZXing.BrowserMultiFormatReader();
+        let zBusy = false;
+        this._scanInterval = setInterval(async () => {
+          if (!this.$refs.videoEl || this.$refs.videoEl.readyState < 2 || zBusy) return;
+          zBusy = true;
+          try {
+            const result = await zReader.decodeFromVideoElement(this.$refs.videoEl);
+            if (result) {
+              const code = result.getText();
+              this.stopScan();
+              this.searchQuery = code;
+              await this.searchProducts();
+              return;
+            }
+          } catch {}
+          zBusy = false;
+        }, 500);
+      } catch(e) {
+        Toast.error('No se pudo acceder a la cámara: ' + e.message);
+        this.scanning = false;
+      }
+    },
+
+    stopScan() {
+      if (this._scanInterval) {
+        clearInterval(this._scanInterval);
+        this._scanInterval = null;
+      }
+      if (this.$refs.videoEl && this.$refs.videoEl.srcObject) {
+        this.$refs.videoEl.srcObject.getTracks().forEach(t => t.stop());
+        this.$refs.videoEl.srcObject = null;
+      }
+      this.scanning = false;
+    }
+  };
+}
+</script>
+{% endblock %}

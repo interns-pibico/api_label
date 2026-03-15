@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4682B4">
+  <title>{% block title %}Label Studio{% endblock %} — api_label</title>
+  <link rel="icon" type="image/svg+xml" href="{{ root_path }}/static/images/favicon.svg">
+
+  {# Static asset versions: style.css?v=27 | app.js?v=2 #}
+  <link rel="stylesheet" href="{{ root_path }}/static/css/style.css?v=27">
+
+  {# Alpine.js deferred — must load before DOMContentLoaded fires #}
+  <script defer src="{{ root_path }}/static/vendor/alpinejs/alpine.min.js"></script>
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+{# ── Global JS constants ──────────────────────────────────────── #}
+<script>
+  window.LABEL_ROOT = '{{ root_path }}';
+</script>
+
+{% block body %}
+
+{# ══════════════════════════════════════════════════════════
+   APP SHELL — used by all authenticated pages
+   ══════════════════════════════════════════════════════════ #}
+{% if not auth_page | default(false) %}
+
+{# Drawer overlay (mobile) #}
+<div class="drawer-overlay" id="drawer-overlay" aria-hidden="true"></div>
+
+{# Drawer (mobile full nav) #}
+<div class="drawer" id="drawer" role="dialog" aria-label="Menú de navegación">
+  <div class="sidebar-logo" style="border-bottom:1px solid var(--border)">
+    <div class="sidebar-logo-icon">L</div>
+    <span class="sidebar-logo-text">Label Studio</span>
+    <button class="btn-menu" id="btn-close-drawer" aria-label="Cerrar menú" style="margin-left:auto">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M18 6L6 18M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+  <nav class="sidebar-nav" aria-label="Navegación principal">
+    <div class="nav-group">
+      <a href="{{ root_path }}/dashboard" class="nav-link" data-page="dashboard">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="{{ root_path }}/scanner" class="nav-link" data-page="scanner">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+        <span>Escáner</span>
+      </a>
+      <a href="{{ root_path }}/products" class="nav-link" data-page="products">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        <span>Productos</span>
+      </a>
+      <a href="{{ root_path }}/labels" class="nav-link" data-page="labels">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        <span>Etiquetas</span>
+      </a>
+      <a href="{{ root_path }}/baskets" class="nav-link" data-page="baskets">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span>Cestas</span>
+      </a>
+      <a href="{{ root_path }}/tokens" class="nav-link" data-page="tokens">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <span>Tokens API</span>
+      </a>
+      <a href="{{ root_path }}/profile" class="nav-link" data-page="profile">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Perfil</span>
+      </a>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-group admin-only hidden">
+      <div class="nav-group-label">Administración</div>
+      <a href="{{ root_path }}/admin/users" class="nav-link" data-page="admin_users">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>Usuarios</span>
+      </a>
+      <a href="{{ root_path }}/admin/usage" class="nav-link" data-page="admin_usage">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Analíticas</span>
+      </a>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-group">
+      <button class="nav-link js-logout" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;color:var(--accent)">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>Cerrar sesión</span>
+      </button>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar js-avatar">U</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name js-username">Usuario</div>
+        <div class="sidebar-user-role js-userrole">Usuario</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Desktop sidebar #}
+<aside class="sidebar" aria-label="Barra lateral">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">L</div>
+    <span class="sidebar-logo-text">Label Studio</span>
+  </div>
+  <nav class="sidebar-nav" aria-label="Navegación principal">
+    <div class="nav-group">
+      <a href="{{ root_path }}/dashboard" class="nav-link" data-page="dashboard" title="Dashboard">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <a href="{{ root_path }}/scanner" class="nav-link" data-page="scanner" title="Escáner">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+        <span>Escáner</span>
+      </a>
+      <a href="{{ root_path }}/products" class="nav-link" data-page="products" title="Productos">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        <span>Productos</span>
+      </a>
+      <a href="{{ root_path }}/labels" class="nav-link" data-page="labels" title="Etiquetas">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        <span>Etiquetas</span>
+      </a>
+      <a href="{{ root_path }}/baskets" class="nav-link" data-page="baskets" title="Cestas">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        <span>Cestas</span>
+      </a>
+      <a href="{{ root_path }}/tokens" class="nav-link" data-page="tokens" title="Tokens API">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        <span>Tokens API</span>
+      </a>
+      <a href="{{ root_path }}/profile" class="nav-link" data-page="profile" title="Perfil">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Perfil</span>
+      </a>
+    </div>
+    <div class="nav-sep"></div>
+    <div class="nav-group admin-only hidden">
+      <div class="nav-group-label">Administración</div>
+      <a href="{{ root_path }}/admin/users" class="nav-link" data-page="admin_users" title="Usuarios">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>Usuarios</span>
+      </a>
+      <a href="{{ root_path }}/admin/usage" class="nav-link" data-page="admin_usage" title="Analíticas">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Analíticas</span>
+      </a>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user">
+      <div class="sidebar-avatar js-avatar">U</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name js-username">Usuario</div>
+        <div class="sidebar-user-role js-userrole">Usuario</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm btn-block js-logout mt-2" style="justify-content:flex-start;color:var(--accent)">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Cerrar sesión
+    </button>
+  </div>
+</aside>
+
+{# Main content area #}
+<div class="main-content">
+  {# Mobile header #}
+  <header class="mobile-header">
+    <div class="mobile-header-logo">
+      <div class="logo-icon">L</div>
+      <span class="logo-text">Label Studio</span>
+    </div>
+    <button class="btn-menu" id="btn-open-drawer" aria-label="Abrir menú">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <line x1="3" y1="12" x2="21" y2="12"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </header>
+
+  {# Page content #}
+  <main class="page-body" id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{# Mobile bottom tab bar #}
+<nav class="bottom-bar" aria-label="Navegación inferior">
+  <a href="{{ root_path }}/scanner" class="tab-btn" data-page="scanner">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+    <span>Escáner</span>
+  </a>
+  <a href="{{ root_path }}/products" class="tab-btn" data-page="products">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+    <span>Productos</span>
+  </a>
+  <a href="{{ root_path }}/baskets" class="tab-btn" data-page="baskets">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+    <span>Cestas</span>
+  </a>
+  <a href="{{ root_path }}/tokens" class="tab-btn" data-page="tokens">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    <span>Tokens</span>
+  </a>
+  <a href="{{ root_path }}/profile" class="tab-btn" data-page="profile">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <span>Perfil</span>
+  </a>
+</nav>
+
+{% endif %}{# end if not auth_page #}
+{% endblock %}{# end block body #}
+
+{# Toast container #}
+<div id="toast-container" aria-live="polite"></div>
+
+{# Core scripts #}
+<script src="{{ root_path }}/static/js/app.js?v=2"></script>
+
+{% block scripts %}{% endblock %}
+
+<script>
+  // Set active nav item based on current page
+  (function() {
+    const page = '{{ active_page | default("") }}';
+    if (page) {
+      document.querySelectorAll('[data-page]').forEach(el => {
+        el.classList.toggle('active', el.dataset.page === page);
+      });
+    }
+  })();
+</script>
+
+</body>
+</html>

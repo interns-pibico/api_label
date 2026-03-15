@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% block title %}Escáner{% endblock %}
+{% set active_page = "scanner" %}
+
+{% block head %}
+<script src="{{ root_path }}/static/vendor/zxing/zxing.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="desktop-page-header">
+  <h1>Escáner de productos</h1>
+</div>
+
+{# Input area #}
+<div class="scanner-area">
+  <div class="scanner-input-row">
+    <input type="text" id="barcode-input" class="form-control" placeholder="Introduce o escanea el código EAN/barcode..." inputmode="numeric"
+           style="font-size:1.05rem;padding:0.75rem 1rem" aria-label="Código de barras">
+    <button class="btn btn-primary" id="btn-search" style="flex-shrink:0">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="hidden" style="display:none" id="search-label">Buscar</span>
+    </button>
+  </div>
+
+  {# Action buttons #}
+  <div class="scanner-actions mb-3">
+    <button class="btn btn-outline" id="btn-camera" type="button">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      Usar cámara
+    </button>
+    <label class="btn btn-ghost" for="file-upload" style="cursor:pointer">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Subir imagen
+    </label>
+    <input type="file" id="file-upload" accept="image/*" class="hidden" aria-label="Subir imagen de código de barras">
+  </div>
+
+  {# Camera view #}
+  <div id="camera-container">
+    <video id="camera-video" autoplay playsinline muted></video>
+    <canvas id="camera-canvas"></canvas>
+    <div class="scanner-overlay">
+      <div class="scanner-crosshair"></div>
+    </div>
+    <button class="btn btn-accent btn-sm" id="btn-stop-camera"
+            style="position:absolute;top:0.75rem;right:0.75rem;z-index:10">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      Detener
+    </button>
+    <div style="position:absolute;bottom:0.75rem;left:50%;transform:translateX(-50%);color:#fff;font-size:0.8rem;text-align:center;pointer-events:none">
+      Apunta al código de barras
+    </div>
+  </div>
+
+  {# Upload preview #}
+  <div id="upload-preview" class="hidden mb-3">
+    <img id="upload-img" style="max-width:100%;max-height:250px;border-radius:var(--radius-sm);object-fit:contain" alt="Vista previa">
+  </div>
+
+  {# Status message #}
+  <div id="scan-status" class="hidden"></div>
+</div>
+
+{# Product result #}
+<div id="product-result" class="product-result card">
+  <div class="product-result-header">
+    <img id="result-img" class="product-result-img" src="" alt="Producto" onerror="this.style.display='none'">
+    <div class="product-result-info">
+      <div class="product-result-name" id="result-name">—</div>
+      <div class="product-result-brand" id="result-brand">—</div>
+      <div class="product-result-barcode" id="result-barcode">—</div>
+    </div>
+  </div>
+
+  <div id="result-details" style="margin-bottom:1rem;display:none">
+    <div class="flex flex-wrap gap-2 mb-2" id="result-badges"></div>
+    <p id="result-desc" class="text-sm text-muted"></p>
+  </div>
+
+  <div id="result-not-found" class="alert alert-warning hidden">
+    Producto no encontrado en la base de datos local. Puedes crearlo manualmente.
+  </div>
+
+  <div class="flex flex-wrap gap-2 mt-3" id="result-actions"></div>
+</div>
+
+{# Label result (after generation) #}
+<div id="label-result" class="card hidden">
+  <div class="card-title">Etiqueta generada</div>
+  <div class="lang-toggle mb-3">
+    <button id="lang-es" class="active" onclick="switchLang('es')">ES</button>
+    <button id="lang-en" onclick="switchLang('en')">EN</button>
+  </div>
+  <div class="label-frame" id="label-frame"></div>
+  <div class="flex gap-2 mt-3 flex-wrap">
+    <button class="btn btn-outline btn-sm" id="btn-download-pdf">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar PDF
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Imprimir
+    </button>
+    <a id="btn-view-label" class="btn btn-ghost btn-sm hidden" href="#">Ver etiqueta completa</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (!Auth.requireAuth()) return;
+
+  let currentProduct = null;
+  let currentLabelId = null;
+  let cameraStream   = null;
+  let scanInterval   = null;
+
+  const barcodeInput   = document.getElementById('barcode-input');
+  const btnSearch      = document.getElementById('btn-search');
+  const btnCamera      = document.getElementById('btn-camera');
+  const btnStopCamera  = document.getElementById('btn-stop-camera');
+  const cameraContainer= document.getElementById('camera-container');
+  const video          = document.getElementById('camera-video');
+  const canvas         = document.getElementById('camera-canvas');
+  const ctx            = canvas.getContext('2d');
+  const fileUpload     = document.getElementById('file-upload');
+  const uploadPreview  = document.getElementById('upload-preview');
+  const uploadImg      = document.getElementById('upload-img');
+  const scanStatus     = document.getElementById('scan-status');
+  const productResult  = document.getElementById('product-result');
+  const labelResult    = document.getElementById('label-result');
+
+  // ── Search / lookup ──────────────────────────────────────
+  btnSearch.addEventListener('click', () => doSearch(barcodeInput.value.trim()));
+  barcodeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doSearch(barcodeInput.value.trim());
+  });
+
+  async function doSearch(code) {
+    if (!code) {
+      Toast.warning('Introduce un código de barras');
+      return;
+    }
+    setStatus('info', 'Buscando producto...');
+    productResult.classList.remove('visible');
+    labelResult.classList.add('hidden');
+    currentProduct = null;
+    currentLabelId = null;
+
+    try {
+      // Try external barcode lookup first
+      let extData = null;
+      try {
+        extData = await api.get(`/api/v1/integrations/barcode/${encodeURIComponent(code)}`);
+      } catch {}
+
+      // Try local product lookup
+      let localProduct = null;
+      try {
+        localProduct = await api.get(`/api/v1/products/barcode/${encodeURIComponent(code)}`);
+      } catch {}
+
+      if (!extData && !localProduct) {
+        showResultNotFound(code);
+        return;
+      }
+
+      // Show the best data available
+      const data = localProduct || extData;
+      showProductResult(data || {}, localProduct, code);
+      clearStatus();
+    } catch (e) {
+      setStatus('error', e.message || 'Error en la búsqueda');
+    }
+  }
+
+  function showResultNotFound(code) {
+    document.getElementById('result-name').textContent = 'Producto desconocido';
+    document.getElementById('result-brand').textContent = '';
+    document.getElementById('result-barcode').textContent = code;
+    document.getElementById('result-img').style.display = 'none';
+    document.getElementById('result-details').style.display = 'none';
+    document.getElementById('result-not-found').classList.remove('hidden');
+    document.getElementById('result-badges').innerHTML = '';
+    document.getElementById('result-actions').innerHTML = `
+      <a href="${ROOT}/products/new?barcode=${encodeURIComponent(code)}" class="btn btn-primary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Crear producto
+      </a>`;
+    productResult.classList.add('visible');
+    clearStatus();
+  }
+
+  function showProductResult(data, localProduct, code) {
+    document.getElementById('result-not-found').classList.add('hidden');
+    document.getElementById('result-name').textContent = data.name || 'Producto';
+    document.getElementById('result-brand').textContent = data.brand || '';
+    document.getElementById('result-barcode').textContent = data.barcode || code;
+
+    const img = document.getElementById('result-img');
+    if (data.image_url) { img.src = data.image_url; img.style.display = ''; }
+    else img.style.display = 'none';
+
+    const detDiv = document.getElementById('result-details');
+    const desc   = document.getElementById('result-desc');
+    if (data.description) { desc.textContent = data.description; detDiv.style.display = ''; }
+    else detDiv.style.display = 'none';
+
+    // Badges
+    const badges = document.getElementById('result-badges');
+    badges.innerHTML = '';
+    if (localProduct) {
+      badges.innerHTML += `<span class="badge badge-success">En catálogo local</span>`;
+    } else {
+      badges.innerHTML += `<span class="badge badge-warning">Solo base externa</span>`;
+    }
+    if (data.is_active === false) {
+      badges.innerHTML += `<span class="badge badge-error">Inactivo</span>`;
+    }
+
+    // Actions
+    const actions = document.getElementById('result-actions');
+    if (localProduct) {
+      currentProduct = localProduct;
+      actions.innerHTML = `
+        <button class="btn btn-primary" id="btn-generate-label">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Generar etiqueta
+        </button>
+        <a href="${ROOT}/products/${localProduct.id}" class="btn btn-outline btn-sm">Ver detalle</a>`;
+
+      document.getElementById('btn-generate-label').addEventListener('click', () => generateLabel('es'));
+    } else {
+      actions.innerHTML = `
+        <a href="${ROOT}/products/new?barcode=${encodeURIComponent(code)}" class="btn btn-primary">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Crear en catálogo
+        </a>`;
+    }
+
+    productResult.classList.add('visible');
+  }
+
+  async function generateLabel(lang) {
+    if (!currentProduct) return;
+    setStatus('info', 'Generando etiqueta...');
+    labelResult.classList.add('hidden');
+    try {
+      const label = await api.post('/api/v1/labels/generate', {
+        product_id: currentProduct.id,
+        format: 'html',
+        language: lang,
+      });
+      currentLabelId = label.id;
+      showLabel(label, lang);
+      Toast.success('Etiqueta generada correctamente');
+      clearStatus();
+    } catch(e) {
+      setStatus('error', e.message || 'Error generando etiqueta');
+    }
+  }
+
+  function showLabel(label, lang) {
+    const frame = document.getElementById('label-frame');
+    if (label.rendered_html) {
+      frame.innerHTML = `<div class="label-html-content">${label.rendered_html}</div>`;
+    } else {
+      frame.innerHTML = `<div class="alert alert-warning">La etiqueta fue generada pero no tiene contenido HTML disponible.</div>`;
+    }
+    labelResult.classList.remove('hidden');
+    labelResult.dataset.labelId = label.id;
+    labelResult.dataset.lang = lang;
+
+    const viewBtn = document.getElementById('btn-view-label');
+    viewBtn.href = `${ROOT}/labels/${label.id}`;
+    viewBtn.classList.remove('hidden');
+
+    document.getElementById('btn-download-pdf').onclick = () => downloadPdf(label.id);
+  }
+
+  window.switchLang = async function(lang) {
+    document.getElementById('lang-es').classList.toggle('active', lang === 'es');
+    document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+    if (currentProduct) await generateLabel(lang);
+  };
+
+  async function downloadPdf(labelId) {
+    Toast.info('Generando PDF...');
+    try {
+      // Trigger PDF generation
+      const newLabel = await api.post('/api/v1/labels/generate', {
+        product_id: currentProduct.id,
+        format: 'pdf',
+        language: labelResult.dataset.lang || 'es',
+      });
+      window.open(`${ROOT}/api/v1/labels/${newLabel.id}/pdf`, '_blank');
+    } catch(e) {
+      Toast.error(e.message || 'Error generando PDF');
+    }
+  }
+
+  // ── Camera ───────────────────────────────────────────────
+  btnCamera.addEventListener('click', startCamera);
+  btnStopCamera.addEventListener('click', stopCamera);
+
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      Toast.error('Tu navegador no soporta acceso a la cámara');
+      return;
+    }
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      video.srcObject = cameraStream;
+      cameraContainer.classList.add('active');
+      btnCamera.disabled = true;
+
+      // Detect best available scanning method
+      let detector = null;
+      if ('BarcodeDetector' in window) {
+        try {
+          const supported = await BarcodeDetector.getSupportedFormats();
+          if (supported.includes('ean_13')) {
+            const wanted = ['ean_13', 'ean_8', 'code_128', 'code_39', 'qr_code', 'upc_a', 'upc_e'];
+            detector = new BarcodeDetector({ formats: wanted.filter(f => supported.includes(f)) });
+          }
+        } catch {}
+      }
+
+      if (detector) {
+        // Native BarcodeDetector — Chrome Android/Windows/macOS with EAN-13 support
+        scanInterval = setInterval(async () => {
+          if (video.readyState < video.HAVE_ENOUGH_DATA) return;
+          try {
+            const codes = await detector.detect(video);
+            if (codes.length > 0) {
+              const code = codes[0].rawValue;
+              barcodeInput.value = code;
+              stopCamera();
+              doSearch(code);
+            }
+          } catch {}
+        }, 250);
+      } else {
+        // ZXing fallback — Firefox, Safari, Chrome Linux, iOS, any other browser
+        const zReader = new ZXing.BrowserMultiFormatReader();
+        let zBusy = false;
+        scanInterval = setInterval(async () => {
+          if (video.readyState < video.HAVE_ENOUGH_DATA || zBusy) return;
+          zBusy = true;
+          canvas.width  = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          try {
+            const result = await zReader.decodeFromImageElement(canvas);
+            if (result) {
+              const code = result.getText();
+              barcodeInput.value = code;
+              stopCamera();
+              doSearch(code);
+              return; // leave zBusy=true — scanner stopped
+            }
+          } catch {}
+          zBusy = false;
+        }, 500);
+      }
+    } catch(e) {
+      Toast.error('No se pudo acceder a la cámara: ' + e.message);
+      cameraContainer.classList.remove('active');
+      btnCamera.disabled = false;
+    }
+  }
+
+  function stopCamera() {
+    clearInterval(scanInterval);
+    scanInterval = null;
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
+    }
+    video.srcObject = null;
+    cameraContainer.classList.remove('active');
+    btnCamera.disabled = false;
+  }
+
+  // ── File upload ──────────────────────────────────────────
+  fileUpload.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const url = URL.createObjectURL(file);
+    uploadImg.src = url;
+    uploadPreview.classList.remove('hidden');
+
+    try {
+      const reader = new ZXing.BrowserMultiFormatReader();
+      const result = await reader.decodeFromImageUrl(url);
+      const code = result.getText();
+      barcodeInput.value = code;
+      Toast.success(`Código detectado: ${code}`);
+      doSearch(code);
+    } catch {
+      Toast.warning('No se detectó ningún código en la imagen. Introdúcelo manualmente.');
+    } finally {
+      fileUpload.value = '';
+    }
+  });
+
+  // ── Utilities ────────────────────────────────────────────
+  function setStatus(type, msg) {
+    scanStatus.className = `alert alert-${type}`;
+    scanStatus.textContent = msg;
+    scanStatus.classList.remove('hidden');
+  }
+  function clearStatus() {
+    scanStatus.classList.add('hidden');
+  }
+
+  // Focus input on load
+  barcodeInput.focus();
+})();
+</script>
+{% endblock %}

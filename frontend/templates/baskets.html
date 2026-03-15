@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Cestas de la Compra{% endblock %}
+{% set active_page = "baskets" %}
+
+{% block content %}
+<div x-data="basketsApp()" x-init="init()" class="p-6">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold" style="color:var(--text)">Cestas de la Compra</h1>
+      <p style="color:var(--text-muted);font-size:0.9rem;margin-top:0.25rem">Organiza tus productos y compara precios</p>
+    </div>
+    <button @click="showCreateModal = true" :disabled="baskets.length >= 3"
+            class="btn btn-primary"
+            :class="{'opacity-50': baskets.length >= 3}"
+            :style="baskets.length >= 3 ? 'cursor:not-allowed' : ''">
+      + Nueva Cesta
+    </button>
+  </div>
+
+  <!-- Limit banner -->
+  <div x-show="baskets.length >= 3" class="alert alert-warning mb-4">
+    Has alcanzado el límite de 3 cestas. Elimina una para crear una nueva.
+  </div>
+
+  <!-- Loading -->
+  <div x-show="loading" class="flex justify-center py-12">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div x-show="!loading && baskets.length === 0" class="text-center py-16">
+    <div style="font-size:4rem;margin-bottom:1rem">🛒</div>
+    <h3 style="font-size:1.25rem;font-weight:600;color:var(--text-muted);margin-bottom:0.5rem">Sin cestas aún</h3>
+    <p style="color:var(--text-muted);margin-bottom:1.5rem">Crea tu primera cesta para empezar a comparar precios</p>
+    <button @click="showCreateModal = true" class="btn btn-primary">Crear primera cesta</button>
+  </div>
+
+  <!-- Baskets grid -->
+  <div x-show="!loading && baskets.length > 0" class="basket-grid">
+    <template x-for="basket in baskets" :key="basket.id">
+      <div class="card p-5 cursor-pointer" style="transition:box-shadow 0.2s"
+           @mouseenter="$event.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.14)'"
+           @mouseleave="$event.currentTarget.style.boxShadow=''"
+           @click="openBasket(basket.id)">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div style="width:2.5rem;height:2.5rem;background:var(--primary-light,#dbeeff);border-radius:0.75rem;display:flex;align-items:center;justify-content:center;font-size:1.25rem">🛒</div>
+            <div>
+              <div style="font-weight:600;color:var(--text)" x-text="basket.name"></div>
+              <div style="font-size:0.75rem;color:var(--text-muted)" x-text="formatDate(basket.created_at)"></div>
+            </div>
+          </div>
+          <button @click.stop="confirmDelete(basket)"
+                  style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0.25rem;border-radius:4px;transition:color 0.15s"
+                  @mouseenter="$event.currentTarget.style.color='#CB4154'"
+                  @mouseleave="$event.currentTarget.style.color=''">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+          </button>
+        </div>
+        <div class="flex items-center justify-between">
+          <span style="font-size:0.875rem;color:var(--text-muted)">
+            <span x-text="basket.item_count"></span> productos
+          </span>
+          <span style="font-size:0.875rem;font-weight:500;color:var(--primary)">Ver →</span>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Create modal -->
+  <div x-show="showCreateModal" x-cloak class="alpine-modal">
+    <div class="alpine-modal-inner" @click.self="showCreateModal = false">
+      <div class="card p-6" style="width:100%;max-width:400px" @click.stop>
+        <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:1rem">Nueva Cesta</h2>
+        <input x-model="newBasketName" type="text"
+               placeholder="Nombre de la cesta (ej: Lácteos, Frutas...)"
+               class="form-control mb-4" style="width:100%"
+               @keydown.enter="createBasket()"
+               maxlength="100">
+        <div class="flex gap-3 justify-end">
+          <button @click="showCreateModal = false" class="btn btn-outline">Cancelar</button>
+          <button @click="createBasket()"
+                  :disabled="!newBasketName.trim() || creating"
+                  class="btn btn-primary">
+            <span x-show="!creating">Crear</span>
+            <span x-show="creating">Creando...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div x-show="deleteTarget" x-cloak class="alpine-modal">
+    <div class="alpine-modal-inner" @click.self="deleteTarget = null">
+      <div class="card p-6" style="width:100%;max-width:380px" @click.stop>
+        <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:0.5rem">Eliminar Cesta</h2>
+        <p style="color:var(--text-muted);margin-bottom:1.5rem">
+          ¿Seguro que quieres eliminar "<span x-text="deleteTarget?.name" style="font-weight:600;color:var(--text)"></span>"?
+          Se borrarán todos los productos de la cesta.
+        </p>
+        <div class="flex gap-3 justify-end">
+          <button @click="deleteTarget = null" class="btn btn-outline">Cancelar</button>
+          <button @click="deleteBasket()" class="btn btn-accent">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function basketsApp() {
+  return {
+    baskets: [],
+    loading: true,
+    showCreateModal: false,
+    newBasketName: '',
+    creating: false,
+    deleteTarget: null,
+
+    async init() {
+      if (!Auth.requireAuth()) return;
+      await this.loadBaskets();
+    },
+
+    async loadBaskets() {
+      this.loading = true;
+      try {
+        const token = Auth.getToken();
+        const r = await fetch(`${ROOT}/api/v1/baskets`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (r.status === 401 || r.status === 403) {
+          if (r.status === 403) window.location.href = `${ROOT}/pricing`;
+          else { Auth.removeToken(); window.location.href = `${ROOT}/login`; }
+          return;
+        }
+        if (r.ok) this.baskets = await r.json();
+      } catch(e) {
+        console.error('loadBaskets error:', e);
+      }
+      this.loading = false;
+    },
+
+    openBasket(id) {
+      window.location.href = `${ROOT}/baskets/${id}`;
+    },
+
+    async createBasket() {
+      if (!this.newBasketName.trim() || this.creating) return;
+      this.creating = true;
+      try {
+        const token = Auth.getToken();
+        const r = await fetch(`${ROOT}/api/v1/baskets`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name: this.newBasketName.trim() })
+        });
+        if (r.ok) {
+          const basket = await r.json();
+          this.showCreateModal = false;
+          this.newBasketName = '';
+          window.location.href = `${ROOT}/baskets/${basket.id}`;
+        } else {
+          const err = await r.json().catch(() => ({}));
+          Toast.error(err.detail || 'Error al crear la cesta');
+        }
+      } catch(e) {
+        Toast.error('Error de conexión');
+      }
+      this.creating = false;
+    },
+
+    confirmDelete(basket) {
+      this.deleteTarget = basket;
+    },
+
+    async deleteBasket() {
+      if (!this.deleteTarget) return;
+      const id = this.deleteTarget.id;
+      const name = this.deleteTarget.name;
+      try {
+        const token = Auth.getToken();
+        const r = await fetch(`${ROOT}/api/v1/baskets/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (r.ok || r.status === 204) {
+          this.baskets = this.baskets.filter(b => b.id !== id);
+          this.deleteTarget = null;
+          Toast.success(`Cesta "${name}" eliminada`);
+        }
+      } catch(e) {
+        Toast.error('Error al eliminar la cesta');
+      }
+    },
+
+    formatDate(dt) {
+      return new Date(dt).toLocaleDateString('es-ES', {
+        day: '2-digit', month: 'short', year: 'numeric'
+      });
+    }
+  };
+}
+</script>
+{% endblock %}

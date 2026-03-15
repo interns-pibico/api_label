@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Mis Etiquetas{% endblock %}
+{% set active_page = "labels" %}
+
+{% block content %}
+<div class="desktop-page-header">
+  <h1>Mis Etiquetas</h1>
+</div>
+
+<div id="labels-content">
+  <div class="loading-overlay">
+    <div class="spinner"></div>
+    <span>Cargando etiquetas...</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (!Auth.requireAuth()) return;
+
+  const container = document.getElementById('labels-content');
+
+  async function loadAllLabels() {
+    try {
+      // Fetch all products
+      const prodsData = await api.get('/api/v1/products?page=1&page_size=100');
+      if (!prodsData || !prodsData.items || prodsData.items.length === 0) {
+        renderEmpty();
+        return;
+      }
+
+      // For each product, fetch its labels
+      const allLabels = [];
+      await Promise.all(prodsData.items.map(async (prod) => {
+        try {
+          const labelsData = await api.get(`/api/v1/products/${prod.id}/labels?page=1&page_size=50`);
+          if (labelsData && labelsData.items) {
+            labelsData.items.forEach(label => {
+              allLabels.push({
+                ...label,
+                product_name: prod.name,
+                product_brand: prod.brand || '',
+                product_id: prod.id,
+              });
+            });
+          }
+        } catch {}
+      }));
+
+      if (allLabels.length === 0) {
+        renderEmpty();
+        return;
+      }
+
+      // Sort by generated_at descending (newest first)
+      allLabels.sort((a, b) => new Date(b.generated_at) - new Date(a.generated_at));
+
+      renderLabels(allLabels);
+
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error">${e.message || 'Error cargando etiquetas'}</div>`;
+    }
+  }
+
+  function renderEmpty() {
+    container.innerHTML = `
+      <div class="card">
+        <div class="empty-state" style="padding:3rem 1.5rem">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--text-muted)">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <div class="empty-state-title">Sin etiquetas generadas</div>
+          <div class="empty-state-desc">Genera tu primera etiqueta desde la ficha de un producto</div>
+          <a href="${ROOT}/products" class="btn btn-primary mt-3">Ir a Productos</a>
+        </div>
+      </div>`;
+  }
+
+  function renderLabels(labels) {
+    const total = labels.length;
+    container.innerHTML = `
+      <div class="card mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="card-title" style="margin-bottom:0">Todas las etiquetas</div>
+          <span class="badge badge-neutral">${total}</span>
+        </div>
+        <div class="labels-table-wrap">
+          <table class="labels-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Marca</th>
+                <th>Formato</th>
+                <th>Idioma</th>
+                <th>Fecha</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${labels.map(l => `
+                <tr>
+                  <td>
+                    <a href="${ROOT}/products/${l.product_id}" style="font-weight:600;color:var(--text)">${escHtml(l.product_name)}</a>
+                  </td>
+                  <td class="text-muted">${escHtml(l.product_brand) || '—'}</td>
+                  <td><span class="badge ${l.format === 'pdf' ? 'badge-accent' : 'badge-success'}">${l.format.toUpperCase()}</span></td>
+                  <td><span class="badge badge-neutral">${l.language.toUpperCase()}</span></td>
+                  <td class="text-muted text-sm">${fmtDatetime(l.generated_at)}</td>
+                  <td><a href="${ROOT}/labels/${l.id}" class="btn btn-ghost btn-sm">Ver</a></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Mobile card view -->
+      <div class="labels-cards-mobile">
+        ${labels.map(l => `
+          <div class="card card-sm mb-2">
+            <div class="flex items-center justify-between mb-1">
+              <a href="${ROOT}/products/${l.product_id}" style="font-weight:600;font-size:0.9rem;color:var(--text)">${escHtml(l.product_name)}</a>
+              <a href="${ROOT}/labels/${l.id}" class="btn btn-ghost btn-sm">Ver</a>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              ${l.product_brand ? `<span class="text-muted text-sm">${escHtml(l.product_brand)}</span><span class="text-muted">&bull;</span>` : ''}
+              <span class="badge ${l.format === 'pdf' ? 'badge-accent' : 'badge-success'}" style="font-size:0.7rem">${l.format.toUpperCase()}</span>
+              <span class="badge badge-neutral" style="font-size:0.7rem">${l.language.toUpperCase()}</span>
+              <span class="text-muted text-xs">${fmtDatetime(l.generated_at)}</span>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }
+
+  function escHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  loadAllLabels();
+})();
+</script>
+
+<style>
+  .labels-table-wrap { overflow-x: auto; }
+  .labels-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .labels-table th {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+  }
+  .labels-table td {
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .labels-table tbody tr:hover { background: var(--primary-light); }
+
+  /* Desktop: show table, hide cards */
+  .labels-cards-mobile { display: none; }
+
+  @media (max-width: 768px) {
+    /* Mobile: hide table, show cards */
+    .labels-table-wrap { display: none !important; }
+    .card:has(.labels-table-wrap) .flex.items-center.justify-between { display: flex; }
+    .labels-cards-mobile { display: block; }
+    /* Also hide the card that wraps the table */
+    .card:has(.labels-table-wrap) { display: none; }
+  }
+
+  .badge-accent {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+</style>
+{% endblock %}

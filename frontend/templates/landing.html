@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+{% block title %}Label Studio — Etiquetas de producto conformes a normativa{% endblock %}
+
+{% block body %}
+<script>window.LABEL_ROOT = '{{ root_path }}';</script>
+
+<div class="landing-wrap">
+
+{# ══════════════════════════════════════════════════════════
+   NAVBAR
+   ══════════════════════════════════════════════════════════ #}
+<nav class="pub-nav pub-nav--landing">
+  <div class="pub-nav-inner">
+    <a href="{{ root_path }}/" class="pub-nav-logo">
+      <div class="pub-nav-logo-icon">L</div>
+      <span>Label Studio</span>
+    </a>
+    <div class="pub-nav-links">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#caracteristicas">Caracteristicas</a>
+      <a href="#normativa">Normativa</a>
+      <a href="#precios">Precios</a>
+    </div>
+    <div class="pub-nav-actions">
+      <a href="{{ root_path }}/login" class="btn btn-ghost btn-sm">Iniciar sesion</a>
+      <a href="{{ root_path }}/try" class="btn btn-primary btn-sm">Probar Gratis</a>
+    </div>
+    {# Mobile hamburger #}
+    <button class="pub-nav-hamburger" id="landing-menu-btn" aria-label="Abrir menu">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  {# Mobile dropdown #}
+  <div class="pub-nav-mobile" id="landing-mobile-menu">
+    <a href="#como-funciona">Como funciona</a>
+    <a href="#caracteristicas">Caracteristicas</a>
+    <a href="#normativa">Normativa</a>
+    <a href="#precios">Precios</a>
+    <div class="pub-nav-mobile-actions">
+      <a href="{{ root_path }}/login" class="btn btn-ghost btn-sm btn-block">Iniciar sesion</a>
+      <a href="{{ root_path }}/try" class="btn btn-primary btn-sm btn-block">Probar Gratis</a>
+    </div>
+  </div>
+</nav>
+
+{# ══════════════════════════════════════════════════════════
+   HERO SECTION
+   ══════════════════════════════════════════════════════════ #}
+<section class="land-hero">
+  <div class="hero-blob hero-blob--1" aria-hidden="true"></div>
+  <div class="hero-blob hero-blob--2" aria-hidden="true"></div>
+  <div class="hero-blob hero-blob--3" aria-hidden="true"></div>
+  <div class="section-inner land-hero-inner">
+    <div class="land-hero-text">
+    <div class="land-hero-badge">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      Conforme al Reglamento (UE) n. 1169/2011
+    </div>
+    <h1>Genera etiquetas de producto <span class="land-hero-accent">conformes a normativa</span></h1>
+    <p class="land-hero-sub">
+      Crea etiquetas nutricionales, de cosmeticos, electronica y mas en segundos.
+      Escanea el codigo de barras, configura tu etiqueta y descarga en PDF o HTML.
+    </p>
+    <div class="land-hero-actions">
+      <a href="{{ root_path }}/try" class="btn btn-primary btn-lg land-hero-cta">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        Probar Gratis
+      </a>
+      <a href="#precios" class="btn btn-outline btn-lg">Ver planes</a>
+    </div>
+    <p class="land-hero-note">3 productos gratis, sin registro ni tarjeta</p>
+    </div>{# end land-hero-text #}
+
+    {# Hero visual — label mockup #}
+    <div class="land-hero-visual">
+      <div class="land-hero-mockup">
+        <div class="land-mockup-header">
+          <div class="land-mockup-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span class="land-mockup-title">Label Studio</span>
+        </div>
+        <div class="land-mockup-body">
+          <div class="land-mockup-label">
+            <div class="land-mockup-label-header">INFORMACION NUTRICIONAL</div>
+            <div class="land-mockup-label-row"><span>Valor energetico</span><span>1845 kJ / 441 kcal</span></div>
+            <div class="land-mockup-label-row"><span>Grasas</span><span>15,2 g</span></div>
+            <div class="land-mockup-label-row land-mockup-sub"><span>de las cuales saturadas</span><span>3,1 g</span></div>
+            <div class="land-mockup-label-row"><span>Hidratos de carbono</span><span>62,4 g</span></div>
+            <div class="land-mockup-label-row land-mockup-sub"><span>de los cuales azucares</span><span>8,7 g</span></div>
+            <div class="land-mockup-label-row"><span>Proteinas</span><span>12,8 g</span></div>
+            <div class="land-mockup-label-row"><span>Sal</span><span>1,2 g</span></div>
+          </div>
+          <div class="land-mockup-barcode">
+            <div class="land-mockup-bars"></div>
+            <span>8 410128 780098</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════
+   TRUSTED / STATS BAR
+   ══════════════════════════════════════════════════════════ #}
+<section class="land-stats">
+  <div class="section-inner">
+    <div class="land-stats-grid">
+      <div class="land-stat">
+        <div class="land-stat-num">5+</div>
+        <div class="land-stat-label">Categorias de producto</div>
+      </div>
+      <div class="land-stat">
+        <div class="land-stat-num">PDF/HTML</div>
+        <div class="land-stat-label">Formatos de descarga</div>
+      </div>
+      <div class="land-stat">
+        <div class="land-stat-num">API REST</div>
+        <div class="land-stat-label">Integracion programatica</div>
+      </div>
+      <div class="land-stat">
+        <div class="land-stat-num">UE</div>
+        <div class="land-stat-label">Conformidad normativa</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════
+   COMO FUNCIONA — 3 steps
+   ══════════════════════════════════════════════════════════ #}
+<section class="land-steps" id="como-funciona">
+  <div class="section-inner">
+    <div class="section-heading">
+      <h2>Como funciona</h2>
+      <p>Tres pasos para generar tu etiqueta conforme a normativa</p>
+    </div>
+    <div class="land-steps-grid">
+      <div class="land-step-card">
+        <div class="land-step-num">1</div>
+        <div class="land-step-icon">
+          <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+          </svg>
+        </div>
+        <h3>Escanea o introduce</h3>
+        <p>Escanea el codigo de barras del producto o introduce los datos manualmente. Nuestro sistema obtiene la informacion del producto al instante.</p>
+      </div>
+      <div class="land-step-card">
+        <div class="land-step-num">2</div>
+        <div class="land-step-icon">
+          <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/>
+          </svg>
+        </div>
+        <h3>Configura tu etiqueta</h3>
+        <p>Selecciona la categoria (nutricional, cosmetica, electronica...), idioma, formato y personaliza los campos que necesites.</p>
+      </div>
+      <div class="land-step-card">
+        <div class="land-step-num">3</div>
+        <div class="land-step-icon">
+          <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </div>
+        <h3>Descarga y usa</h3>
+        <p>Genera tu etiqueta en PDF de alta calidad o HTML embebible. Lista para imprimir o integrar en tu web o sistema.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════
+   CARACTERISTICAS — feature cards
+   ══════════════════════════════════════════════════════════ #}
+<section class="land-features" id="caracteristicas">
+  <div class="section-inner">
+    <div class="section-heading">
+      <h2>Todo lo que necesitas para tus etiquetas</h2>
+      <p>Herramientas profesionales para cumplir con la normativa sin complicaciones</p>
+    </div>
+    <div class="land-features-grid">
+
+      <div class="land-feat-card">
+        <div class="land-feat-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+            <line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
+          </svg>
+        </div>
+        <h3>Etiquetas nutricionales</h3>
+        <p>Tablas nutricionales completas con valor energetico, macronutrientes, vitaminas y minerales segun el formato legal europeo.</p>
+      </div>
+
+      <div class="land-feat-card">
+        <div class="land-feat-icon land-feat-icon--accent">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3>Cumplimiento normativo</h3>
+        <p>Etiquetas conformes al Reglamento (UE) n. 1169/2011 y otras regulaciones sectoriales europeas y nacionales.</p>
+      </div>
+
+      <div class="land-feat-card">
+        <div class="land-feat-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+            <line x1="3" y1="12" x2="21" y2="12"/>
+          </svg>
+        </div>
+        <h3>Escaner EAN/UPC</h3>
+        <p>Escanea codigos de barras EAN-13, UPC-A y otros formatos con la camara del movil o introduce el codigo manualmente.</p>
+      </div>
+
+      <div class="land-feat-card">
+        <div class="land-feat-icon land-feat-icon--accent">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <h3>PDF y HTML</h3>
+        <p>Descarga etiquetas en PDF de alta resolucion listas para imprimir, o en HTML responsivo para integrar en tu web.</p>
+      </div>
+
+      <div class="land-feat-card">
+        <div class="land-feat-icon">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+        </div>
+        <h3>API REST con tokens</h3>
+        <p>Integra la generacion de etiquetas en tu sistema mediante nuestra API REST. Tokens personales para acceso programatico seguro.</p>
+      </div>
+
+      <div class="land-feat-card">
+        <div class="land-feat-icon land-feat-icon--accent">
+          <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
+          </svg>
+        </div>
+        <h3>Multiidioma</h3>
+        <p>Genera etiquetas en espanol, ingles y mas idiomas. Perfecto para productos destinados a mercados internacionales.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════
+   NORMATIVA — compliance highlight
+   ══════════════════════════════════════════════════════════ #}
+<section class="land-compliance" id="normativa">
+  <div class="section-inner">
+    <div class="land-compliance-card">
+      <div class="land-compliance-content">
+        <div class="land-compliance-badge">Cumplimiento normativo</div>
+        <h2>Etiquetas que cumplen la ley</h2>
+        <p>
+          Nuestro motor de generacion sigue las directrices del
+          <strong>Reglamento (UE) n. 1169/2011</strong> sobre informacion alimentaria
+          facilitada al consumidor. Ademas, cubrimos normativa especifica para:
+        </p>
+        <ul class="land-compliance-list">
+          <li>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><strong>Alimentacion</strong> — Tablas nutricionales, alergenos, ingredientes, fecha de caducidad</span>
+          </li>
+          <li>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><strong>Cosmetica</strong> — Ingredientes INCI, advertencias, PAO, lote</span>
+          </li>
+          <li>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><strong>Electronica</strong> — Marcado CE, RAEE, informacion del fabricante</span>
+          </li>
+          <li>
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <span><strong>Ferreteria</strong> — Fichas de seguridad, pictogramas, indicaciones de peligro</span>
+          </li>
+        </ul>
+      </div>
+      <div class="land-compliance-visual">
+        <div class="land-compliance-shield">
+          <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <polyline points="9 12 11 14 15 10" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="land-compliance-tags">
+          <span class="land-tag">Reglamento (UE) 1169/2011</span>
+          <span class="land-tag">Marcado CE</span>
+          <span class="land-tag">INCI</span>
+          <span class="land-tag">Reg. (CE) 1223/2009</span>
+          <span class="land-tag">RAEE</span>
+          <span class="land-tag">CLP</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════
+   PRECIOS — pricing summary
+   ══════════════════════════════════════════════════════════ #}
+<section class="land-pricing" id="precios">
+  <div class="section-inner">
+    <div class="section-heading">
+      <h2>Planes simples, sin sorpresas</h2>
+      <p>Acceso completo desde el primer dia. Sin limites de productos ni etiquetas.</p>
+    </div>
+    <div class="land-pricing-grid">
+
+      {# Mensual #}
+      <div class="land-price-card">
+        <div class="land-price-name">Mensual</div>
+        <div class="land-price-amount">19,90 <span>EUR/mes</span></div>
+        <div class="land-price-period">Facturado mensualmente</div>
+        <ul class="land-price-features">
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Productos ilimitados
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Etiquetas ilimitadas
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Descarga PDF/HTML
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Soporte por email
+          </li>
+        </ul>
+        <a href="{{ root_path }}/register?plan=monthly" class="btn btn-outline btn-block">Suscribirse</a>
+      </div>
+
+      {# Semestral — featured #}
+      <div class="land-price-card land-price-card--featured">
+        <div class="land-price-badge">Mas popular</div>
+        <div class="land-price-name">Semestral</div>
+        <div class="land-price-amount">14,90 <span>EUR/mes</span></div>
+        <div class="land-price-period">89,40 EUR cada 6 meses <em class="land-price-save">Ahorras 25%</em></div>
+        <ul class="land-price-features">
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Productos ilimitados
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Etiquetas ilimitadas
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Tokens API incluidos
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Soporte prioritario
+          </li>
+        </ul>
+        <a href="{{ root_path }}/register?plan=semiannual" class="btn btn-primary btn-block">Suscribirse</a>
+      </div>
+
+      {# Anual #}
+      <div class="land-price-card">
+        <div class="land-price-name">Anual</div>
+        <div class="land-price-amount">11,90 <span>EUR/mes</span></div>
+        <div class="land-price-period">142,80 EUR al ano <em class="land-price-save">Ahorras 40%</em></div>
+        <ul class="land-price-features">
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Todo lo del plan Semestral
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Mejor precio por mes
+          </li>
+          <li>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Soporte prioritario
+          </li>
+        </ul>
+        <a href="{{ root_path }}/register?plan=annual" class="btn btn-outline btn-block">Suscribirse</a>
+      </div>
+
+    </div>
+    <p class="land-pricing-note">
+      Todos los planes incluyen acceso completo a todas las funcionalidades.
+      <a href="{{ root_path }}/pricing">Ver detalle de precios</a>
+    </p>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════
+   CTA BANNER
+   ══════════════════════════════════════════════════════════ #}
+<section class="land-cta">
+  <div class="section-inner">
+    <h2>Empieza a generar etiquetas conformes hoy</h2>
+    <p>Prueba gratis con 3 productos. Sin registro, sin tarjeta, sin compromiso.</p>
+    <div class="land-cta-actions">
+      <a href="{{ root_path }}/try" class="btn btn-primary btn-lg">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+        Probar Gratis
+      </a>
+      <a href="{{ root_path }}/register" class="btn btn-outline btn-lg land-cta-outline">Crear cuenta</a>
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════════════════
+   FOOTER
+   ══════════════════════════════════════════════════════════ #}
+<footer class="land-footer">
+  <div class="section-inner">
+    <div class="land-footer-grid">
+      <div class="land-footer-brand">
+        <div class="land-footer-logo">
+          <div class="pub-nav-logo-icon">L</div>
+          <span>Label Studio</span>
+        </div>
+        <p>Sistema profesional de generacion de etiquetas de producto conformes a la normativa europea.</p>
+      </div>
+      <div class="land-footer-links">
+        <h4>Producto</h4>
+        <a href="{{ root_path }}/try">Probar Gratis</a>
+        <a href="{{ root_path }}/pricing">Precios</a>
+        <a href="#caracteristicas">Caracteristicas</a>
+        <a href="#normativa">Normativa</a>
+      </div>
+      <div class="land-footer-links">
+        <h4>Cuenta</h4>
+        <a href="{{ root_path }}/login">Iniciar sesion</a>
+        <a href="{{ root_path }}/register">Crear cuenta</a>
+      </div>
+    </div>
+    <div class="land-footer-bottom">
+      <span>Label Studio by PibiCo &middot; 2026</span>
+    </div>
+  </div>
+</footer>
+
+</div>{# end landing-wrap #}
+
+{# ── Landing mobile menu toggle ─────────────────────────── #}
+<script>
+(function(){
+  var btn = document.getElementById('landing-menu-btn');
+  var menu = document.getElementById('landing-mobile-menu');
+  if(!btn || !menu) return;
+  btn.addEventListener('click', function(){
+    menu.classList.toggle('open');
+    btn.setAttribute('aria-expanded', menu.classList.contains('open'));
+  });
+  // Close on link click
+  menu.querySelectorAll('a').forEach(function(a){
+    a.addEventListener('click', function(){ menu.classList.remove('open'); });
+  });
+  // Smooth scroll for anchor links
+  document.querySelectorAll('.pub-nav a[href^="#"], .land-footer a[href^="#"]').forEach(function(a){
+    a.addEventListener('click', function(e){
+      var target = document.querySelector(a.getAttribute('href'));
+      if(target){
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+})();
+</script>
+
+{% endblock %}{# end block body — base.html carga toast-container y app.js automaticamente #}
+
+{% block scripts %}{% endblock %}

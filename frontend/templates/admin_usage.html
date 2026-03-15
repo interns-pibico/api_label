@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}Analíticas de uso{% endblock %}
+{% set active_page = "admin_usage" %}
+
+{% block head %}
+<script src="{{ root_path }}/static/vendor/chartjs/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="desktop-page-header">
+  <h1>Analíticas de uso</h1>
+</div>
+<h2 style="font-size:1.1rem;font-family:var(--font-head);margin-bottom:1rem;padding-top:0.25rem">Analíticas</h2>
+
+{# KPI Cards #}
+<div class="stat-grid mb-4" id="kpi-grid">
+  <div class="stat-card">
+    <div class="stat-label">Llamadas hoy</div>
+    <div class="stat-value" id="kpi-today">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Esta semana</div>
+    <div class="stat-value" id="kpi-week">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Este mes</div>
+    <div class="stat-value" id="kpi-month">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Tasa de éxito</div>
+    <div class="stat-value" id="kpi-success">—</div>
+    <div class="stat-sub" id="kpi-avg-ms">—</div>
+  </div>
+</div>
+
+{# Global stats period selector #}
+<div class="card mb-4">
+  <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+    <div class="card-title" style="margin-bottom:0">Estadísticas globales</div>
+    <div class="flex gap-2">
+      <select id="period-select" class="form-control" style="max-width:160px;min-height:36px;padding:0.3rem 0.5rem;font-size:0.8rem">
+        <option value="7">Últimos 7 días</option>
+        <option value="30" selected>Últimos 30 días</option>
+        <option value="90">Últimos 90 días</option>
+      </select>
+    </div>
+  </div>
+  <div id="stats-detail" style="font-size:0.875rem;color:var(--text-muted)">
+    <div class="loading-overlay" style="padding:1rem"><div class="spinner"></div></div>
+  </div>
+</div>
+
+{# Usage chart #}
+<div class="card mb-4">
+  <div class="card-title">Llamadas API (últimos 30 días)</div>
+  <div style="position:relative;height:250px">
+    <canvas id="usage-chart"></canvas>
+    <div id="chart-loading" class="loading-overlay" style="position:absolute;inset:0">
+      <div class="spinner"></div>
+      <span>Cargando datos...</span>
+    </div>
+    <div id="chart-empty" class="empty-state hidden" style="position:absolute;inset:0;padding:1rem">
+      <div class="empty-state-title">Sin datos suficientes</div>
+      <div class="empty-state-desc">No hay registros de uso para mostrar en el gráfico</div>
+    </div>
+  </div>
+</div>
+
+{# Top users & endpoints tables #}
+<div style="display:grid;grid-template-columns:1fr;gap:1rem" id="tables-grid">
+  <div class="card">
+    <div class="card-title">Top 10 usuarios por consumo</div>
+    <div id="top-users-table">
+      <div class="loading-overlay"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Top 10 endpoints</div>
+    <div id="top-endpoints-table">
+      <div class="loading-overlay"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+{# Recent usage log #}
+<div class="card mt-4">
+  <div class="flex items-center justify-between mb-3">
+    <div class="card-title" style="margin-bottom:0">Últimas llamadas</div>
+  </div>
+  <div class="table-wrapper" style="box-shadow:none">
+    <div id="usage-log-container">
+      <div class="loading-overlay"><div class="spinner"></div></div>
+    </div>
+  </div>
+  <div id="usage-pagination" class="pagination"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (!Auth.requireAdmin()) return;
+
+  let usageChart = null;
+
+  // ── KPI / Stats ──────────────────────────────────────────
+  async function loadStats() {
+    try {
+      // Global all-time stats
+      const stats = await api.get('/api/v1/usage/stats');
+      if (stats) {
+        document.getElementById('kpi-month').textContent  = stats.total_requests.toLocaleString();
+        document.getElementById('kpi-success').textContent = stats.total_requests
+          ? Math.round((stats.success_requests / stats.total_requests) * 100) + '%'
+          : '—';
+        document.getElementById('kpi-avg-ms').textContent = stats.avg_response_time_ms
+          ? `Avg ${Math.round(stats.avg_response_time_ms)} ms`
+          : '';
+      }
+
+      // Stats for today
+      const now    = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const weekStart  = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString();
+
+      const [todayStats, weekStats] = await Promise.all([
+        api.get(`/api/v1/usage/stats?since=${todayStart}`).catch(() => null),
+        api.get(`/api/v1/usage/stats?since=${weekStart}`).catch(() => null),
+      ]);
+
+      if (todayStats) document.getElementById('kpi-today').textContent = todayStats.total_requests.toLocaleString();
+      if (weekStats)  document.getElementById('kpi-week').textContent  = weekStats.total_requests.toLocaleString();
+
+      // Render stats detail
+      document.getElementById('stats-detail').innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.75rem">
+          <div><div class="text-xs text-muted mb-1">Total solicitudes</div><div class="font-bold">${stats?.total_requests?.toLocaleString() || '—'}</div></div>
+          <div><div class="text-xs text-muted mb-1">Exitosas</div><div class="font-bold" style="color:var(--success)">${stats?.success_requests?.toLocaleString() || '—'}</div></div>
+          <div><div class="text-xs text-muted mb-1">Errores</div><div class="font-bold" style="color:var(--error)">${stats?.error_requests?.toLocaleString() || '—'}</div></div>
+          <div><div class="text-xs text-muted mb-1">Tiempo medio</div><div class="font-bold">${stats?.avg_response_time_ms ? Math.round(stats.avg_response_time_ms) + ' ms' : '—'}</div></div>
+        </div>`;
+    } catch(e) {
+      console.error('Stats error:', e);
+    }
+  }
+
+  // ── Usage chart ──────────────────────────────────────────
+  async function loadChart() {
+    const chartLoading = document.getElementById('chart-loading');
+    const chartEmpty   = document.getElementById('chart-empty');
+
+    try {
+      // Get last 30 days of usage logs
+      const data = await api.get('/api/v1/usage?page=1&page_size=100');
+      chartLoading.style.display = 'none';
+
+      if (!data || data.items.length === 0) {
+        chartEmpty.classList.remove('hidden');
+        return;
+      }
+
+      // Aggregate by day
+      const days = {};
+      data.items.forEach(log => {
+        const day = new Date(log.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        days[day] = (days[day] || 0) + 1;
+      });
+
+      // Last 30 days (fill zeros)
+      const labels = [];
+      const values = [];
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const lbl = d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+        labels.push(lbl);
+        values.push(days[lbl] || 0);
+      }
+
+      const ctx = document.getElementById('usage-chart').getContext('2d');
+      usageChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Llamadas API',
+            data: values,
+            backgroundColor: 'rgba(70,130,180,0.7)',
+            borderColor: '#4682B4',
+            borderWidth: 1,
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (ctx) => ctx[0].label,
+                label:  (ctx) => `${ctx.parsed.y} llamadas`,
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
+            y: { beginAtZero: true, ticks: { stepSize: 1 } },
+          },
+        },
+      });
+    } catch(e) {
+      chartLoading.style.display = 'none';
+      chartEmpty.classList.remove('hidden');
+    }
+  }
+
+  // ── Top users / endpoints ────────────────────────────────
+  async function loadTopTables() {
+    try {
+      const data = await api.get('/api/v1/usage?page=1&page_size=200');
+      if (!data || !data.items.length) {
+        document.getElementById('top-users-table').innerHTML = `<div class="empty-state" style="padding:1rem"><div class="empty-state-title">Sin datos</div></div>`;
+        document.getElementById('top-endpoints-table').innerHTML = `<div class="empty-state" style="padding:1rem"><div class="empty-state-title">Sin datos</div></div>`;
+        return;
+      }
+
+      // Aggregate by user
+      const byUser = {};
+      const byEndpoint = {};
+      data.items.forEach(log => {
+        const uk = log.user_id || 'anon';
+        byUser[uk] = (byUser[uk] || 0) + 1;
+        const ek = `${log.method} ${log.endpoint}`;
+        byEndpoint[ek] = (byEndpoint[ek] || 0) + 1;
+      });
+
+      const topUsers = Object.entries(byUser).sort(([,a],[,b]) => b - a).slice(0, 10);
+      const topEndpoints = Object.entries(byEndpoint).sort(([,a],[,b]) => b - a).slice(0, 10);
+      const maxUser = topUsers[0]?.[1] || 1;
+      const maxEp   = topEndpoints[0]?.[1] || 1;
+
+      document.getElementById('top-users-table').innerHTML = topUsers.length === 0
+        ? `<div class="empty-state" style="padding:1rem"><div class="empty-state-title">Sin datos</div></div>`
+        : `<div class="flex flex-col gap-1">${topUsers.map(([uid, count], i) => `
+          <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem">
+            <div style="width:20px;font-size:0.75rem;font-weight:700;color:var(--text-muted)">#${i+1}</div>
+            <div style="flex:1;min-width:0">
+              <div class="mono truncate" style="font-size:0.775rem">${uid.slice(0,8)}...</div>
+              <div style="height:4px;background:var(--border);border-radius:2px;margin-top:4px">
+                <div style="height:100%;background:var(--primary);border-radius:2px;width:${Math.round(count/maxUser*100)}%"></div>
+              </div>
+            </div>
+            <div style="font-weight:700;font-size:0.875rem">${count}</div>
+          </div>`).join('')}
+        </div>`;
+
+      document.getElementById('top-endpoints-table').innerHTML = topEndpoints.length === 0
+        ? `<div class="empty-state" style="padding:1rem"><div class="empty-state-title">Sin datos</div></div>`
+        : `<div class="flex flex-col gap-1">${topEndpoints.map(([ep, count], i) => `
+          <div style="display:flex;align-items:center;gap:0.75rem;padding:0.5rem">
+            <div style="width:20px;font-size:0.75rem;font-weight:700;color:var(--text-muted)">#${i+1}</div>
+            <div style="flex:1;min-width:0">
+              <div class="truncate" style="font-size:0.775rem;font-family:monospace">${ep}</div>
+              <div style="height:4px;background:var(--border);border-radius:2px;margin-top:4px">
+                <div style="height:100%;background:var(--accent);border-radius:2px;width:${Math.round(count/maxEp*100)}%"></div>
+              </div>
+            </div>
+            <div style="font-weight:700;font-size:0.875rem">${count}</div>
+          </div>`).join('')}
+        </div>`;
+
+      // Responsive grid
+      if (window.innerWidth >= 1024) {
+        document.getElementById('tables-grid').style.gridTemplateColumns = '1fr 1fr';
+      }
+    } catch(e) {
+      console.error('Top tables error:', e);
+    }
+  }
+
+  // ── Usage log ────────────────────────────────────────────
+  let logPage = 1;
+  async function loadUsageLog(page = 1) {
+    const container = document.getElementById('usage-log-container');
+    const pagination= document.getElementById('usage-pagination');
+    container.innerHTML = `<div class="loading-overlay"><div class="spinner"></div></div>`;
+
+    try {
+      const data = await api.get(`/api/v1/usage?page=${page}&page_size=20`);
+      if (!data || data.items.length === 0) {
+        container.innerHTML = `<div class="empty-state" style="padding:1.5rem"><div class="empty-state-title">Sin logs</div></div>`;
+        pagination.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Método</th>
+              <th>Endpoint</th>
+              <th>Status</th>
+              <th>Tiempo</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>${data.items.map(log => `
+            <tr>
+              <td><span class="badge ${log.method === 'GET' ? 'badge-primary' : log.method === 'POST' ? 'badge-success' : 'badge-neutral'}">${log.method}</span></td>
+              <td class="mono" style="font-size:0.75rem;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${log.endpoint}</td>
+              <td><span class="badge ${log.status_code < 300 ? 'badge-success' : log.status_code < 400 ? 'badge-warning' : 'badge-error'}">${log.status_code || '—'}</span></td>
+              <td class="td-muted">${log.response_time_ms ? log.response_time_ms + ' ms' : '—'}</td>
+              <td class="td-muted">${fmtDatetime(log.created_at)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+
+      renderPagination(pagination, { page: data.page, pages: data.pages }, (p) => {
+        logPage = p;
+        loadUsageLog(p);
+      });
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error">${e.message || 'Error cargando logs'}</div>`;
+    }
+  }
+
+  document.getElementById('period-select').addEventListener('change', async (e) => {
+    const days = parseInt(e.target.value);
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    try {
+      const stats = await api.get(`/api/v1/usage/stats?since=${since.toISOString()}`);
+      document.getElementById('stats-detail').innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0.75rem">
+          <div><div class="text-xs text-muted mb-1">Total solicitudes</div><div class="font-bold">${stats?.total_requests?.toLocaleString() || '0'}</div></div>
+          <div><div class="text-xs text-muted mb-1">Exitosas</div><div class="font-bold" style="color:var(--success)">${stats?.success_requests?.toLocaleString() || '0'}</div></div>
+          <div><div class="text-xs text-muted mb-1">Errores</div><div class="font-bold" style="color:var(--error)">${stats?.error_requests?.toLocaleString() || '0'}</div></div>
+          <div><div class="text-xs text-muted mb-1">Tiempo medio</div><div class="font-bold">${stats?.avg_response_time_ms ? Math.round(stats.avg_response_time_ms) + ' ms' : '—'}</div></div>
+        </div>`;
+    } catch {}
+  });
+
+  // Load all
+  loadStats();
+  loadChart();
+  loadTopTables();
+  loadUsageLog(1);
+})();
+</script>
+{% endblock %}

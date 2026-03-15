@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Mi perfil{% endblock %}
+{% set active_page = "profile" %}
+
+{% block content %}
+<div class="desktop-page-header">
+  <h1>Mi perfil</h1>
+</div>
+<h2 style="font-size:1.1rem;font-family:var(--font-head);margin-bottom:1rem;padding-top:0.25rem">Mi perfil</h2>
+
+{# Profile info card #}
+<div class="card mb-4">
+  <div class="card-title">Información de cuenta</div>
+  <div class="flex items-center gap-3 mb-4">
+    <div id="avatar-big" style="width:64px;height:64px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-head);font-weight:700;font-size:1.5rem;flex-shrink:0">U</div>
+    <div>
+      <div style="font-family:var(--font-head);font-weight:700;font-size:1.1rem" id="profile-name">—</div>
+      <div class="text-sm text-muted" id="profile-username">—</div>
+      <div class="text-sm text-muted" id="profile-email">—</div>
+    </div>
+  </div>
+  <div id="profile-error" class="alert alert-error hidden"></div>
+  <div id="profile-success" class="alert alert-success hidden"></div>
+
+  <form id="profile-form" novalidate>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="full_name">Nombre completo</label>
+        <input id="full_name" name="full_name" type="text" class="form-control" autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input id="email" name="email" type="email" class="form-control" autocomplete="email">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Guardar cambios
+    </button>
+  </form>
+</div>
+
+{# Change password card #}
+<div class="card mb-4">
+  <div class="card-title">Cambiar contraseña</div>
+  <div id="pw-error" class="alert alert-error hidden"></div>
+  <div id="pw-success" class="alert alert-success hidden"></div>
+
+  <form id="pw-form" novalidate>
+    <div class="form-group">
+      <label class="form-label" for="current_password">Contraseña actual <span class="required">*</span></label>
+      <input id="current_password" name="current_password" type="password" class="form-control" autocomplete="current-password" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="new_password">Nueva contraseña <span class="required">*</span></label>
+        <input id="new_password" name="new_password" type="password" class="form-control" autocomplete="new-password" required minlength="8">
+        <p class="form-hint">Mínimo 8 caracteres</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="confirm_password">Confirmar nueva contraseña</label>
+        <input id="confirm_password" name="confirm_password" type="password" class="form-control" autocomplete="new-password">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-outline">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Cambiar contraseña
+    </button>
+  </form>
+</div>
+
+{# Account info #}
+<div class="card mb-4">
+  <div class="card-title">Información de cuenta</div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem">
+    <div>
+      <div class="text-xs text-muted text-uppercase" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">ID de usuario</div>
+      <div class="mono text-sm" id="profile-id">—</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Rol</div>
+      <div id="profile-role" class="font-semibold text-sm">—</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Estado</div>
+      <div id="profile-status" class="font-semibold text-sm">—</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted" style="text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Miembro desde</div>
+      <div id="profile-created" class="text-sm">—</div>
+    </div>
+  </div>
+</div>
+
+{# Danger zone #}
+<div class="card" style="border:2px solid var(--error)">
+  <div class="card-title" style="color:var(--error)">Zona peligrosa</div>
+  <p class="text-sm text-muted mb-3">Cerrar sesión en todos los dispositivos o eliminar tu cuenta.</p>
+  <div class="flex gap-2 flex-wrap">
+    <button class="btn btn-danger btn-sm js-logout">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Cerrar sesión
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (!Auth.requireAuth()) return;
+
+  async function loadProfile() {
+    try {
+      const user = await fetchAndStoreUser();
+      if (!user) return;
+
+      document.getElementById('avatar-big').textContent = (user.full_name || user.username || 'U').charAt(0).toUpperCase();
+      document.getElementById('profile-name').textContent    = user.full_name || user.username || '—';
+      document.getElementById('profile-username').textContent= '@' + (user.username || '—');
+      document.getElementById('profile-email').textContent   = user.email || '—';
+      document.getElementById('profile-id').textContent      = user.id || '—';
+      document.getElementById('profile-role').textContent    = user.is_admin ? 'Administrador' : 'Usuario';
+      document.getElementById('profile-status').innerHTML    = user.is_active
+        ? '<span class="badge badge-success">Activo</span>'
+        : '<span class="badge badge-error">Inactivo</span>';
+      document.getElementById('profile-created').textContent = fmtDate(user.created_at);
+
+      // Pre-fill form
+      document.getElementById('full_name').value = user.full_name || '';
+      document.getElementById('email').value     = user.email || '';
+    } catch(e) {
+      Toast.error('Error cargando perfil: ' + e.message);
+    }
+  }
+
+  // Profile update form
+  document.getElementById('profile-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('profile-error');
+    const sucEl = document.getElementById('profile-success');
+    errEl.classList.add('hidden');
+    sucEl.classList.add('hidden');
+
+    const full_name = document.getElementById('full_name').value.trim();
+    const email     = document.getElementById('email').value.trim();
+
+    try {
+      const user = Auth.getUser();
+      if (!user) return;
+      // Note: PATCH /users/me or PUT based on backend
+      // Using available endpoint
+      await api.put(`/api/v1/users/${user.id}`, { full_name, email });
+      sucEl.textContent = 'Perfil actualizado correctamente';
+      sucEl.classList.remove('hidden');
+      await fetchAndStoreUser();
+      populateUserInfo();
+    } catch(e) {
+      errEl.textContent = e.message || 'Error al actualizar el perfil';
+      errEl.classList.remove('hidden');
+    }
+  });
+
+  // Password change form
+  document.getElementById('pw-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('pw-error');
+    const sucEl = document.getElementById('pw-success');
+    errEl.classList.add('hidden');
+    sucEl.classList.add('hidden');
+
+    const current = document.getElementById('current_password').value;
+    const newPw   = document.getElementById('new_password').value;
+    const confirm = document.getElementById('confirm_password').value;
+
+    if (!current || !newPw) { errEl.textContent = 'Completa todos los campos.'; errEl.classList.remove('hidden'); return; }
+    if (newPw.length < 8)   { errEl.textContent = 'La nueva contraseña debe tener al menos 8 caracteres.'; errEl.classList.remove('hidden'); return; }
+    if (newPw !== confirm)  { errEl.textContent = 'Las contraseñas no coinciden.'; errEl.classList.remove('hidden'); return; }
+
+    try {
+      await api.post('/api/v1/users/me/change-password', {
+        current_password: current,
+        new_password: newPw,
+      });
+      sucEl.textContent = 'Contraseña cambiada correctamente. Inicia sesión de nuevo.';
+      sucEl.classList.remove('hidden');
+      document.getElementById('pw-form').reset();
+      setTimeout(() => { Auth.removeToken(); window.location.href = ROOT + '/login'; }, 2500);
+    } catch(e) {
+      errEl.textContent = e.message || 'Error al cambiar la contraseña';
+      errEl.classList.remove('hidden');
+    }
+  });
+
+  loadProfile();
+})();
+</script>
+{% endblock %}

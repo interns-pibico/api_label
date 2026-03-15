@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+{% block title %}Prueba gratuita — Label Studio{% endblock %}
+
+{% block head %}
+<script src="{{ root_path }}/static/vendor/zxing/zxing.min.js"></script>
+{% endblock %}
+
+{% block body %}
+<script>window.LABEL_ROOT = '{{ root_path }}';</script>
+
+<div class="try-page-wrap">
+
+  {# -- Header -- #}
+  <header class="try-pg-header">
+    <div class="try-pg-header-inner">
+      <a href="{{ root_path }}/" class="try-pg-logo">
+        Label Studio
+      </a>
+      <div style="display:flex;align-items:center;gap:.875rem">
+        <div class="try-counter-chip" id="try-chip">
+          <span class="try-chip-dot" id="d1"></span>
+          <span class="try-chip-dot" id="d2"></span>
+          <span class="try-chip-dot" id="d3"></span>
+          <span id="chip-label" style="margin-left:.25rem">3 etiquetas gratis</span>
+        </div>
+        <a href="{{ root_path }}/login" class="btn btn-ghost btn-sm">Iniciar sesion</a>
+      </div>
+    </div>
+  </header>
+
+  {# -- Main -- #}
+  <main class="try-pg-main">
+    <div class="try-pg-container">
+
+      {# === STEP 1: Search === #}
+      <section id="step-search" class="try-step">
+        <div class="try-search-header">
+          <h1 style="font-size:1.35rem;margin-bottom:.25rem">Busca tu producto alimentario</h1>
+          <p class="text-muted text-sm">
+            Busca por nombre o escanea su codigo de barras para generar la etiqueta nutricional
+          </p>
+        </div>
+
+        {# Search bar #}
+        <form id="search-form" class="try-search-bar" autocomplete="off">
+          <div class="try-search-input-wrap">
+            <svg class="try-search-icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="search-input" class="try-search-input" placeholder="Nombre del producto..." aria-label="Buscar producto">
+          </div>
+          <button type="submit" class="btn btn-primary try-search-btn" id="btn-search">
+            Buscar
+          </button>
+        </form>
+
+        {# Camera toggle #}
+        <div class="try-scanner-toggle">
+          <button type="button" class="btn btn-outline try-scanner-btn" id="btn-open-scanner">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+            </svg>
+            Escanear codigo de barras
+          </button>
+        </div>
+
+        {# Camera area (hidden by default) #}
+        <div id="scanner-area" class="try-scanner-area hidden">
+          <div class="try-scanner-viewport">
+            <video id="scanner-video" autoplay playsinline muted></video>
+            <canvas id="scanner-canvas" style="display:none"></canvas>
+            <div class="try-scanner-overlay">
+              <div class="try-scanner-crosshair"></div>
+            </div>
+            <button type="button" class="btn btn-sm try-scanner-close" id="btn-close-scanner">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              Cerrar
+            </button>
+            <div class="try-scanner-hint">Apunta al codigo de barras</div>
+          </div>
+        </div>
+
+        {# Status message #}
+        <div id="search-status" class="try-status hidden"></div>
+
+        {# Search results #}
+        <div id="search-results" class="try-results hidden"></div>
+
+        {# Single barcode result #}
+        <div id="barcode-result" class="try-results hidden"></div>
+      </section>
+
+      {# === STEP 2: Label preview === #}
+      <section id="step-label" class="try-step hidden">
+        <div class="try-label-header">
+          <button type="button" class="btn btn-ghost btn-sm" id="btn-back-search">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Buscar otro producto
+          </button>
+          <span id="label-product-name" class="try-label-product-name"></span>
+        </div>
+
+        <div id="label-loading" class="try-label-loading hidden">
+          <div class="spinner" style="width:28px;height:28px;border-width:3px"></div>
+          <span class="text-muted text-sm">Generando etiqueta...</span>
+        </div>
+
+        <div id="label-error" class="alert alert-error hidden" style="margin-bottom:1rem"></div>
+
+        <iframe id="label-iframe" class="try-pg-iframe hidden"
+                title="Vista previa de etiqueta nutricional"
+                sandbox="allow-same-origin"></iframe>
+
+        <div id="label-nutriscore" class="try-label-nutriscore hidden">
+          <span class="text-sm text-muted">Nutriscore:</span>
+          <div class="nutriscore-badge" id="label-nutriscore-badge"></div>
+        </div>
+
+        <div id="label-actions" class="try-pg-actions hidden">
+          <span id="label-uses-left" class="text-sm text-muted"></span>
+          <a href="{{ root_path }}/register" class="btn btn-outline btn-sm">
+            Guardar etiqueta &rarr;
+          </a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+</div>{# end try-page-wrap #}
+
+{# -- Subscribe modal -- #}
+<div id="subscribe-modal" class="modal-overlay hidden"
+     role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-card">
+    <div style="font-size:2.75rem;line-height:1;margin-bottom:1rem">&#x1F512;</div>
+    <h2 id="modal-title" style="font-size:1.2rem;margin-bottom:.5rem">
+      Has usado tus 3 productos gratuitos
+    </h2>
+    <p class="text-muted text-sm" style="margin-bottom:2rem;line-height:1.65">
+      Suscribete para continuar generando etiquetas sin limite
+      y guardar todos tus productos.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:.75rem">
+      <a href="{{ root_path }}/pricing" class="btn btn-primary btn-block btn-lg">
+        Suscribirse ahora
+      </a>
+      <a href="{{ root_path }}/login" class="btn btn-ghost btn-block">
+        Ya tengo cuenta
+      </a>
+    </div>
+    <button id="modal-close" class="btn btn-ghost btn-sm"
+            style="margin-top:.75rem;color:var(--text-muted);font-size:.8rem">
+      Cerrar
+    </button>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+(function () {
+  'use strict';
+
+  var ROOT      = window.LABEL_ROOT || '';
+  var TRIES_KEY = 'lbl_tries';
+  var MAX_TRIES = 3;
+
+  // localStorage only for immediate visual feedback; server (Redis) is authoritative.
+  var tries = parseInt(localStorage.getItem(TRIES_KEY) || '0', 10);
+
+  // ── DOM refs ──
+  var searchForm    = document.getElementById('search-form');
+  var searchInput   = document.getElementById('search-input');
+  var btnSearch     = document.getElementById('btn-search');
+  var searchStatus  = document.getElementById('search-status');
+  var searchResults = document.getElementById('search-results');
+  var barcodeResult = document.getElementById('barcode-result');
+  var btnOpenScanner  = document.getElementById('btn-open-scanner');
+  var btnCloseScanner = document.getElementById('btn-close-scanner');
+  var scannerArea   = document.getElementById('scanner-area');
+  var scannerVideo  = document.getElementById('scanner-video');
+  var scannerCanvas = document.getElementById('scanner-canvas');
+  var scannerCtx    = scannerCanvas.getContext('2d');
+
+  var stepSearch = document.getElementById('step-search');
+  var stepLabel  = document.getElementById('step-label');
+  var btnBack    = document.getElementById('btn-back-search');
+  var labelName  = document.getElementById('label-product-name');
+  var labelLoading = document.getElementById('label-loading');
+  var labelError   = document.getElementById('label-error');
+  var labelIframe  = document.getElementById('label-iframe');
+  var labelNutriscore    = document.getElementById('label-nutriscore');
+  var labelNutriscoreBadge = document.getElementById('label-nutriscore-badge');
+  var labelActions = document.getElementById('label-actions');
+  var labelUsesLeft= document.getElementById('label-uses-left');
+
+  var modal      = document.getElementById('subscribe-modal');
+  var dots       = [
+    document.getElementById('d1'),
+    document.getElementById('d2'),
+    document.getElementById('d3')
+  ];
+  var chipLabel  = document.getElementById('chip-label');
+
+  var cameraStream = null;
+  var scanInterval = null;
+
+  // Nutriscore colors
+  var NS_COLORS = {
+    a: '#038141', b: '#85BB2F', c: '#FECB02', d: '#EE8100', e: '#E63E11'
+  };
+  var NS_TEXT_COLORS = { c: '#333' };
+
+  // ── Counter chip ──
+  function updateCounter() {
+    var used = Math.min(tries, MAX_TRIES);
+    var left = MAX_TRIES - used;
+    dots.forEach(function(d, i) { d.classList.toggle('used', i < used); });
+    if (left > 0) {
+      chipLabel.textContent = left + ' etiqueta' + (left > 1 ? 's' : '') + ' restante' + (left > 1 ? 's' : '');
+      chipLabel.style.color = '';
+    } else {
+      chipLabel.textContent = 'Limite alcanzado';
+      chipLabel.style.color = 'var(--accent)';
+    }
+  }
+
+  function syncFromServer(serverLeft) {
+    tries = MAX_TRIES - serverLeft;
+    localStorage.setItem(TRIES_KEY, String(tries));
+    updateCounter();
+  }
+
+  function showLimitReached() {
+    tries = MAX_TRIES;
+    localStorage.setItem(TRIES_KEY, String(MAX_TRIES));
+    updateCounter();
+  }
+
+  updateCounter();
+
+  // Show modal immediately if limit was already reached
+  if (tries >= MAX_TRIES) {
+    showLimitReached();
+    modal.classList.remove('hidden');
+  }
+
+  // ── Modal close ──
+  document.getElementById('modal-close').addEventListener('click', function() {
+    modal.classList.add('hidden');
+  });
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.classList.add('hidden');
+  });
+
+  // ── Status helpers ──
+  function setStatus(type, msg) {
+    searchStatus.className = 'try-status alert alert-' + type;
+    searchStatus.textContent = msg;
+    searchStatus.classList.remove('hidden');
+  }
+  function clearStatus() {
+    searchStatus.classList.add('hidden');
+  }
+
+  // ── Nutriscore badge HTML ──
+  function nutriscoreBadgeHTML(grade) {
+    if (!grade) return '<div class="nutriscore-badge nutriscore-none">?</div>';
+    var g = grade.toLowerCase();
+    return '<div class="nutriscore-badge nutriscore-' + g + '">' + g.toUpperCase() + '</div>';
+  }
+
+  // ── Product card HTML ──
+  function productCardHTML(p) {
+    var img = p.image_url
+      ? '<img class="try-product-img" src="' + p.image_url + '" alt="' + (p.name || '') + '" onerror="this.style.display=\'none\'">'
+      : '<div class="try-product-img try-product-img-placeholder"><svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg></div>';
+
+    var brand = p.brand ? '<div class="try-product-brand">' + p.brand + '</div>' : '';
+    var ns = nutriscoreBadgeHTML(p.nutriscore);
+
+    return '<div class="try-product-card" data-barcode="' + (p.barcode || '') + '">'
+      + img
+      + '<div class="try-product-info">'
+      + '<div class="try-product-name">' + (p.name || 'Producto') + '</div>'
+      + brand
+      + '</div>'
+      + '<div class="try-product-right">'
+      + ns
+      + '<svg class="try-product-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>'
+      + '</div>'
+      + '</div>';
+  }
+
+  // ── Text search ──
+  searchForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var q = searchInput.value.trim();
+    if (!q) return;
+    doTextSearch(q);
+  });
+
+  async function doTextSearch(q) {
+    clearStatus();
+    searchResults.classList.add('hidden');
+    barcodeResult.classList.add('hidden');
+    setStatus('info', 'Buscando en Open Food Facts...');
+    btnSearch.disabled = true;
+
+    try {
+      var resp = await fetch(ROOT + '/api/v1/off/search?q=' + encodeURIComponent(q), {
+        credentials: 'include'
+      });
+
+      if (resp.status === 429) {
+        setStatus('warning', 'Demasiadas solicitudes. Espera unos minutos.');
+        return;
+      }
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Error en la busqueda');
+
+      clearStatus();
+
+      if (!data.length) {
+        setStatus('warning', 'No se encontraron productos para "' + q + '". Prueba con otro nombre o escanea el codigo de barras.');
+        return;
+      }
+
+      searchResults.innerHTML = '<div class="try-results-title">Resultados (' + data.length + ')</div>'
+        + data.map(productCardHTML).join('');
+      searchResults.classList.remove('hidden');
+
+      // Bind click events
+      searchResults.querySelectorAll('.try-product-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+          var bc = this.dataset.barcode;
+          if (bc) generateLabelByBarcode(bc);
+        });
+      });
+
+    } catch (err) {
+      setStatus('error', err.message || 'Error inesperado');
+    } finally {
+      btnSearch.disabled = false;
+    }
+  }
+
+  // ── Camera scanner ──
+  btnOpenScanner.addEventListener('click', startScanner);
+  btnCloseScanner.addEventListener('click', stopScanner);
+
+  async function startScanner() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus('error', 'Tu navegador no soporta acceso a la camara');
+      return;
+    }
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      scannerVideo.srcObject = cameraStream;
+      scannerArea.classList.remove('hidden');
+      btnOpenScanner.disabled = true;
+
+      // Detect best available scanning method
+      var detector = null;
+      if ('BarcodeDetector' in window) {
+        try {
+          var supported = await BarcodeDetector.getSupportedFormats();
+          if (supported.indexOf('ean_13') !== -1) {
+            var wanted = ['ean_13', 'ean_8', 'code_128', 'code_39', 'qr_code', 'upc_a', 'upc_e'];
+            detector = new BarcodeDetector({ formats: wanted.filter(function(f) { return supported.indexOf(f) !== -1; }) });
+          }
+        } catch {}
+      }
+
+      if (detector) {
+        // Native BarcodeDetector — Chrome Android/Windows/macOS with EAN-13 support
+        scanInterval = setInterval(function() {
+          if (scannerVideo.readyState < scannerVideo.HAVE_ENOUGH_DATA) return;
+          detector.detect(scannerVideo).then(function(codes) {
+            if (codes.length > 0) { stopScanner(); onBarcodeDetected(codes[0].rawValue); }
+          }).catch(function() {});
+        }, 250);
+      } else {
+        // ZXing fallback — Firefox, Safari, Chrome Linux, iOS, any other browser
+        var zReader = new ZXing.BrowserMultiFormatReader();
+        var zBusy = false;
+        scanInterval = setInterval(function() {
+          if (scannerVideo.readyState < scannerVideo.HAVE_ENOUGH_DATA || zBusy) return;
+          zBusy = true;
+          scannerCanvas.width  = scannerVideo.videoWidth;
+          scannerCanvas.height = scannerVideo.videoHeight;
+          scannerCtx.drawImage(scannerVideo, 0, 0);
+          zReader.decodeFromImageElement(scannerCanvas).then(function(result) {
+            if (result) { stopScanner(); onBarcodeDetected(result.getText()); return; }
+            zBusy = false;
+          }).catch(function() { zBusy = false; });
+        }, 500);
+      }
+    } catch (err) {
+      setStatus('error', 'No se pudo acceder a la camara: ' + err.message);
+    }
+  }
+
+  function stopScanner() {
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(function(t) { t.stop(); });
+      cameraStream = null;
+    }
+    scannerVideo.srcObject = null;
+    scannerArea.classList.add('hidden');
+    btnOpenScanner.disabled = false;
+  }
+
+  async function onBarcodeDetected(barcode) {
+    clearStatus();
+    searchResults.classList.add('hidden');
+    barcodeResult.classList.add('hidden');
+    setStatus('info', 'Codigo detectado: ' + barcode + '. Buscando producto...');
+
+    try {
+      var resp = await fetch(ROOT + '/api/v1/off/barcode-search/' + encodeURIComponent(barcode), {
+        credentials: 'include'
+      });
+      if (resp.status === 404) {
+        setStatus('warning', 'Producto con codigo ' + barcode + ' no encontrado en Open Food Facts.');
+        return;
+      }
+      if (resp.status === 429) {
+        setStatus('warning', 'Demasiadas solicitudes. Espera unos minutos.');
+        return;
+      }
+      var data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || 'Error en la busqueda');
+
+      clearStatus();
+
+      // Show single product card with a "Generar etiqueta" button
+      var card = productCardHTML({
+        barcode: data.barcode,
+        name: data.name,
+        brand: data.brand,
+        image_url: data.image_url,
+        nutriscore: data.nutriscore
+      });
+
+      barcodeResult.innerHTML = '<div class="try-results-title">Producto encontrado</div>' + card;
+      barcodeResult.classList.remove('hidden');
+
+      barcodeResult.querySelector('.try-product-card').addEventListener('click', function() {
+        generateLabelByBarcode(data.barcode);
+      });
+
+    } catch (err) {
+      setStatus('error', err.message || 'Error inesperado');
+    }
+  }
+
+  // ── Generate label by barcode ──
+  async function generateLabelByBarcode(barcode) {
+    // Check local limit first
+    if (tries >= MAX_TRIES) {
+      modal.classList.remove('hidden');
+      return;
+    }
+
+    // Switch to label step
+    stepSearch.classList.add('hidden');
+    stepLabel.classList.remove('hidden');
+    labelIframe.classList.add('hidden');
+    labelNutriscore.classList.add('hidden');
+    labelActions.classList.add('hidden');
+    labelError.classList.add('hidden');
+    labelLoading.classList.remove('hidden');
+    labelName.textContent = '';
+
+    try {
+      var resp = await fetch(ROOT + '/api/v1/labels/preview-by-barcode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ barcode: barcode })
+      });
+
+      // Handle 429 from trial limit or slowapi
+      if (resp.status === 429) {
+        var body429 = await resp.json().catch(function() { return {}; });
+        if (body429.detail === 'trial_limit_reached') {
+          showLimitReached();
+          setTimeout(function() { modal.classList.remove('hidden'); }, 300);
+        } else {
+          labelError.textContent = 'Demasiadas solicitudes. Espera unos minutos e intentalo de nuevo.';
+          labelError.classList.remove('hidden');
+        }
+        labelLoading.classList.add('hidden');
+        return;
+      }
+
+      var data = await resp.json();
+
+      // Handle 404 (product not found)
+      if (resp.status === 404) {
+        labelError.textContent = data.detail || 'Producto no encontrado en Open Food Facts.';
+        labelError.classList.remove('hidden');
+        labelLoading.classList.add('hidden');
+        if (typeof data.tries_remaining === 'number') syncFromServer(data.tries_remaining);
+        return;
+      }
+
+      // Handle 422 (missing nutrition data)
+      if (resp.status === 422) {
+        labelError.textContent = data.detail || 'El producto no tiene datos nutricionales suficientes.';
+        labelError.classList.remove('hidden');
+        labelLoading.classList.add('hidden');
+        if (typeof data.tries_remaining === 'number') syncFromServer(data.tries_remaining);
+        return;
+      }
+
+      if (!resp.ok) throw new Error(data.detail || 'Error generando la etiqueta');
+
+      // Success — show label
+      labelLoading.classList.add('hidden');
+      labelName.textContent = data.product_name || '';
+
+      labelIframe.onload = function() {
+        try {
+          var doc = labelIframe.contentDocument;
+          if (doc && doc.body) {
+            var h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+            labelIframe.style.height = (h + 4) + 'px';
+          }
+        } catch(e) {}
+      };
+      labelIframe.srcdoc = data.html;
+      labelIframe.classList.remove('hidden');
+
+      // Nutriscore badge
+      if (data.nutriscore) {
+        var g = data.nutriscore.toLowerCase();
+        labelNutriscoreBadge.className = 'nutriscore-badge nutriscore-' + g;
+        labelNutriscoreBadge.textContent = g.toUpperCase();
+        labelNutriscore.classList.remove('hidden');
+      }
+
+      // Sync counter from server
+      var serverLeft = (typeof data.tries_remaining === 'number') ? data.tries_remaining : (MAX_TRIES - tries - 1);
+      syncFromServer(serverLeft);
+
+      // Actions bar
+      labelActions.classList.remove('hidden');
+      labelActions.style.display = 'flex';
+      var left = serverLeft;
+      labelUsesLeft.textContent = left > 0
+        ? 'Te quedan ' + left + ' etiqueta' + (left > 1 ? 's' : '') + ' gratuita' + (left > 1 ? 's' : '')
+        : 'Has alcanzado el limite gratuito';
+
+      // Show modal after delay when limit reached
+      if (left === 0) {
+        showLimitReached();
+        setTimeout(function() { modal.classList.remove('hidden'); }, 1500);
+      }
+
+    } catch (err) {
+      labelLoading.classList.add('hidden');
+      labelError.textContent = err.message || 'Error inesperado. Intentalo de nuevo.';
+      labelError.classList.remove('hidden');
+    }
+  }
+
+  // ── Back to search ──
+  btnBack.addEventListener('click', function() {
+    stepLabel.classList.add('hidden');
+    stepSearch.classList.remove('hidden');
+  });
+
+  // Focus search on load
+  searchInput.focus();
+
+})();
+</script>
+{% endblock %}
+
+{% endblock %}{# end block body #}

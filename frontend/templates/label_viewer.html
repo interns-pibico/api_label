@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% block title %}Visor de etiqueta{% endblock %}
+{% set active_page = "labels" %}
+
+{% block content %}
+<div class="lv-wrapper">
+
+  <div class="lv-topbar">
+    <a href="{{ root_path }}/labels" class="btn btn-ghost btn-icon btn-sm" title="Volver">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    </a>
+    <h1 class="lv-title">Etiqueta</h1>
+    <div class="lang-toggle" id="lang-toggle">
+      <button id="btn-lang-es" class="active" onclick="switchLang('es')">ES</button>
+      <button id="btn-lang-en" onclick="switchLang('en')">EN</button>
+    </div>
+    <button class="btn btn-outline btn-sm" id="btn-download-pdf">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span class="lv-btn-label">PDF</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="window.print()">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      <span class="lv-btn-label">Imprimir</span>
+    </button>
+    <a id="btn-product-link" class="btn btn-ghost btn-sm hidden" href="#">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+      <span class="lv-btn-label">Producto</span>
+    </a>
+  </div>
+
+  <div class="lv-meta" id="label-meta" style="display:none">
+    <span class="lv-meta-item"><span class="lv-meta-key">Idioma</span><span class="lv-meta-val" id="meta-lang">—</span></span>
+    <span class="lv-meta-sep">·</span>
+    <span class="lv-meta-item"><span class="lv-meta-key">Formato</span><span class="lv-meta-val" id="meta-format">—</span></span>
+    <span class="lv-meta-sep">·</span>
+    <span class="lv-meta-item"><span class="lv-meta-key">Normativa</span><span class="lv-meta-val" id="meta-regulation">—</span></span>
+    <span class="lv-meta-sep">·</span>
+    <span class="lv-meta-item"><span class="lv-meta-key">Generada</span><span class="lv-meta-val" id="meta-date">—</span></span>
+  </div>
+
+  <div id="label-status"></div>
+
+  <div class="lv-frame" id="label-frame">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <span>Cargando etiqueta...</span>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (!Auth.requireAuth()) return;
+
+  const pathParts = window.location.pathname.split('/');
+  const labelsIdx = pathParts.findIndex(p => p === 'labels');
+  const labelId   = labelsIdx >= 0 ? pathParts[labelsIdx + 1] : null;
+  if (!labelId) { window.location.href = ROOT + '/products'; return; }
+
+  let currentLabel = null;
+  const frame       = document.getElementById('label-frame');
+  const statusDiv   = document.getElementById('label-status');
+  const metaDiv     = document.getElementById('label-meta');
+  const btnPdfDl    = document.getElementById('btn-download-pdf');
+  const btnProdLink = document.getElementById('btn-product-link');
+
+  async function loadLabel(id) {
+    frame.innerHTML = `<div class="loading-overlay"><div class="spinner"></div><span>Cargando...</span></div>`;
+    statusDiv.innerHTML = '';
+    try {
+      const label = await api.get(`/api/v1/labels/${id}`);
+      currentLabel = label;
+      renderLabel(label);
+    } catch(e) {
+      frame.innerHTML = `<div class="alert alert-error">${e.message || 'Error cargando etiqueta'}</div>`;
+    }
+  }
+
+  function renderLabel(label) {
+    document.getElementById('meta-lang').textContent       = label.language?.toUpperCase() || '—';
+    document.getElementById('meta-format').textContent     = label.format?.toUpperCase() || '—';
+    document.getElementById('meta-regulation').textContent = label.regulation_version || 'Estándar';
+    document.getElementById('meta-date').textContent       = fmtDatetime(label.generated_at);
+    metaDiv.style.display = 'flex';
+
+    document.getElementById('btn-lang-es').classList.toggle('active', label.language === 'es');
+    document.getElementById('btn-lang-en').classList.toggle('active', label.language === 'en');
+
+    if (label.product_id) {
+      btnProdLink.href = `${ROOT}/products/${label.product_id}`;
+      btnProdLink.classList.remove('hidden');
+    }
+
+    if (label.rendered_html) {
+      frame.innerHTML = '';
+      const iframe = document.createElement('iframe');
+      iframe.style.cssText = 'width:100%;border:none;display:block;flex:1;min-height:0;';
+      frame.appendChild(iframe);
+      iframe.contentDocument.open();
+      iframe.contentDocument.write(label.rendered_html);
+      iframe.contentDocument.close();
+      // Auto-size iframe height to its content
+      function fitIframe() {
+        const doc = iframe.contentDocument;
+        if (!doc || !doc.body) return;
+        const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+        iframe.style.height = (h + 4) + 'px';
+      }
+      fitIframe();
+      requestAnimationFrame(() => { fitIframe(); setTimeout(fitIframe, 150); });
+    } else if (label.format === 'pdf') {
+      frame.innerHTML = `
+        <div class="empty-state" style="padding:2rem">
+          <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <div class="empty-state-title">Etiqueta PDF</div>
+          <div class="empty-state-desc">Esta etiqueta está en formato PDF. Descárgala para visualizarla.</div>
+          <button class="btn btn-primary mt-4" onclick="window.downloadPdf()">Descargar PDF</button>
+        </div>`;
+    } else {
+      frame.innerHTML = `<div class="empty-state"><div class="empty-state-title">Sin contenido</div></div>`;
+    }
+  }
+
+  window.switchLang = async function(lang) {
+    if (!currentLabel) return;
+    document.getElementById('btn-lang-es').classList.toggle('active', lang === 'es');
+    document.getElementById('btn-lang-en').classList.toggle('active', lang === 'en');
+    try {
+      Toast.info('Regenerando...');
+      const newLabel = await api.post('/api/v1/labels/generate', {
+        product_id: currentLabel.product_id,
+        format: currentLabel.format || 'html',
+        language: lang,
+      });
+      currentLabel = newLabel;
+      renderLabel(newLabel);
+      history.replaceState(null, '', `${ROOT}/labels/${newLabel.id}`);
+      Toast.success('Idioma cambiado');
+    } catch(e) { Toast.error(e.message || 'Error'); }
+  };
+
+  window.downloadPdf = async function() {
+    if (!currentLabel) return;
+    try {
+      Toast.info('Generando PDF...');
+      const newLabel = await api.post('/api/v1/labels/generate', {
+        product_id: currentLabel.product_id,
+        format: 'pdf',
+        language: currentLabel.language || 'es',
+      });
+      window.open(`${ROOT}/api/v1/labels/${newLabel.id}/pdf`, '_blank');
+    } catch(e) { Toast.error(e.message || 'Error generando PDF'); }
+  };
+  btnPdfDl.addEventListener('click', window.downloadPdf);
+
+  loadLabel(labelId);
+})();
+</script>
+
+<style>
+/* ── Label viewer layout ──────────────────────────────────────── */
+
+/* Make page-body a flex column that fills viewport height */
+.page-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0 !important;
+}
+
+.lv-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+/* Compact single-row topbar */
+.lv-topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.lv-title {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Compact metadata row */
+.lv-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+.lv-meta-item { display: flex; align-items: center; gap: 0.3rem; }
+.lv-meta-key { color: var(--text-muted); }
+.lv-meta-val { font-weight: 600; color: var(--text); }
+.lv-meta-sep { color: var(--border); }
+
+/* Label frame: fills remaining space, scrolls if label is long */
+.lv-frame {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 0;
+}
+
+/* Mobile: compact button labels */
+@media (max-width: 640px) {
+  .lv-btn-label { display: none; }
+  .lv-meta-sep { display: none; }
+  .lv-meta { gap: 0.75rem; }
+}
+
+@media print {
+  .sidebar, .mobile-header, .lv-topbar, .lv-meta, .bottom-bar { display: none !important; }
+  .lv-frame { box-shadow: none; border-radius: 0; }
+  .page-body { overflow: visible; }
+}
+</style>
+{% endblock %}

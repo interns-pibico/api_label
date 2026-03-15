@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Crear cuenta{% endblock %}
+
+{% block body %}
+<nav class="pub-nav">
+  <div class="pub-nav-inner">
+    <a href="{{ root_path }}/" class="pub-nav-logo">
+      <div style="width:32px;height:32px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-head);font-weight:700;font-size:1rem">L</div>
+      <span>Label Studio</span>
+    </a>
+    <div class="pub-nav-actions">
+      <a href="{{ root_path }}/login" class="btn btn-ghost btn-sm">Ya tengo cuenta</a>
+    </div>
+  </div>
+</nav>
+<div class="auth-page auth-with-nav">
+  <div class="auth-card">
+    <div class="flex items-center gap-3 mb-6">
+      <div style="width:44px;height:44px;background:var(--primary);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:var(--font-head);font-weight:700;font-size:1.3rem">L</div>
+      <div>
+        <div style="font-family:var(--font-head);font-weight:700;font-size:1.2rem;color:var(--primary)">Label Studio</div>
+        <div style="font-size:0.75rem;color:var(--text-muted)">Sistema de etiquetas de producto</div>
+      </div>
+    </div>
+
+    <h1 style="font-size:1.4rem;margin-bottom:0.25rem">Crear cuenta</h1>
+    <p class="text-muted text-sm mb-4">Regístrate para acceder al sistema</p>
+
+    <div id="error-msg" class="alert alert-error hidden" role="alert"></div>
+    <div id="success-msg" class="alert alert-success hidden" role="alert"></div>
+
+    <form id="register-form" novalidate>
+      <div class="form-group">
+        <label class="form-label" for="full_name">Nombre completo</label>
+        <input id="full_name" name="full_name" type="text" class="form-control"
+               placeholder="Tu nombre completo" autocomplete="name" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="username">Nombre de usuario <span class="required">*</span></label>
+        <input id="username" name="username" type="text" class="form-control"
+               placeholder="ej. maria.garcia" autocomplete="username" required minlength="3">
+        <p class="form-hint">Mínimo 3 caracteres, sin espacios</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="email">Email <span class="required">*</span></label>
+        <input id="email" name="email" type="email" class="form-control"
+               placeholder="tu@email.com" autocomplete="email" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Contraseña <span class="required">*</span></label>
+        <div style="position:relative">
+          <input id="password" name="password" type="password" class="form-control"
+                 placeholder="Mínimo 8 caracteres" autocomplete="new-password" required minlength="8"
+                 style="padding-right:2.75rem">
+          <button type="button" id="toggle-pw" aria-label="Mostrar/ocultar contraseña"
+                  style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);padding:0.25rem;display:flex;align-items:center">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+        <p class="form-hint">Mínimo 8 caracteres</p>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="submit-btn">
+        <span id="submit-text">Crear cuenta</span>
+        <span id="submit-spinner" class="spinner hidden" style="width:18px;height:18px;border-width:2px"></span>
+      </button>
+    </form>
+
+    <p class="text-sm text-muted mt-4" style="text-align:center">
+      ¿Ya tienes cuenta?
+      <a href="{{ root_path }}/login" style="color:var(--primary);font-weight:600">Inicia sesión</a>
+    </p>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (Auth.isLoggedIn()) {
+    window.location.href = ROOT + '/dashboard';
+    return;
+  }
+
+  const form    = document.getElementById('register-form');
+  const errMsg  = document.getElementById('error-msg');
+  const sucMsg  = document.getElementById('success-msg');
+  const spinner = document.getElementById('submit-spinner');
+  const btnText = document.getElementById('submit-text');
+  const btn     = document.getElementById('submit-btn');
+
+  document.getElementById('toggle-pw').addEventListener('click', function() {
+    const pw = document.getElementById('password');
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+  });
+
+  function setLoading(on) {
+    btn.disabled = on;
+    spinner.classList.toggle('hidden', !on);
+    btnText.textContent = on ? 'Creando...' : 'Crear cuenta';
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errMsg.classList.add('hidden');
+    sucMsg.classList.add('hidden');
+
+    const username  = document.getElementById('username').value.trim();
+    const email     = document.getElementById('email').value.trim();
+    const password  = document.getElementById('password').value;
+    const full_name = document.getElementById('full_name').value.trim();
+
+    if (!username || !email || !password) {
+      errMsg.textContent = 'Por favor completa todos los campos obligatorios.';
+      errMsg.classList.remove('hidden');
+      return;
+    }
+    if (password.length < 8) {
+      errMsg.textContent = 'La contraseña debe tener al menos 8 caracteres.';
+      errMsg.classList.remove('hidden');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await api.post('/api/v1/auth/register', { username, email, password, full_name });
+      sucMsg.textContent = 'Cuenta creada correctamente. Redirigiendo al login...';
+      sucMsg.classList.remove('hidden');
+      setTimeout(() => { window.location.href = ROOT + '/login'; }, 2000);
+    } catch (err) {
+      errMsg.textContent = err.message || 'Error al crear la cuenta';
+      errMsg.classList.remove('hidden');
+      setLoading(false);
+    }
+  });
+})();
+</script>
+{% endblock %}

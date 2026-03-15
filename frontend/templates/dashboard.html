@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% set active_page = "dashboard" %}
+
+{% block content %}
+<div class="desktop-page-header">
+  <h1>Dashboard</h1>
+</div>
+
+{# Stats grid #}
+<div class="stat-grid" id="stats-grid">
+  <a href="{{ root_path }}/labels" class="stat-card stat-card-link" style="text-decoration:none;color:inherit">
+    <div class="stat-label">Etiquetas generadas</div>
+    <div class="stat-value" id="stat-labels">—</div>
+    <div class="stat-sub">Total acumulado</div>
+  </a>
+  <div class="stat-card">
+    <div class="stat-label">Mis productos</div>
+    <div class="stat-value" id="stat-products">—</div>
+    <div class="stat-sub">En catálogo</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Tokens activos</div>
+    <div class="stat-value" id="stat-tokens">—</div>
+    <div class="stat-sub">API Keys válidos</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Comparaciones</div>
+    <div class="stat-value" id="stat-comparisons">—</div>
+    <div class="stat-sub">Realizadas</div>
+  </div>
+</div>
+
+{# Quick actions #}
+<div class="card mb-4">
+  <div class="card-title">Acciones rápidas</div>
+  <div class="flex flex-wrap gap-3">
+    <a href="{{ root_path }}/scanner" class="btn btn-primary">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+      Escanear producto
+    </a>
+    <a href="{{ root_path }}/products/new" class="btn btn-outline">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nuevo producto
+    </a>
+    <a href="{{ root_path }}/tokens" class="btn btn-ghost">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Gestionar tokens
+    </a>
+  </div>
+</div>
+
+{# Recent activity #}
+<div class="card">
+  <div class="flex items-center justify-between mb-3">
+    <div class="card-title" style="margin-bottom:0">Actividad reciente</div>
+    <a href="{{ root_path }}/products" class="text-sm" style="color:var(--primary)">Ver todos</a>
+  </div>
+  <div id="activity-list">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <span>Cargando actividad...</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  if (!Auth.requireAuth()) return;
+
+  async function loadStats() {
+    try {
+      // Load products count
+      const prods = await api.get('/api/v1/products?page=1&page_size=1');
+      if (prods) document.getElementById('stat-products').textContent = prods.total;
+
+      // Load tokens count
+      const tokens = await api.get('/api/v1/tokens?page=1&page_size=1');
+      if (tokens) {
+        const activeCount = tokens.total;
+        document.getElementById('stat-tokens').textContent = activeCount;
+      }
+    } catch(e) {
+      console.error('Stats error:', e);
+    }
+  }
+
+  async function loadActivity() {
+    const container = document.getElementById('activity-list');
+    try {
+      const prods = await api.get('/api/v1/products?page=1&page_size=5');
+      if (!prods || !prods.items || prods.items.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state" style="padding:2rem">
+            <svg fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <div class="empty-state-title">Sin actividad reciente</div>
+            <div class="empty-state-desc">Crea tu primer producto para empezar</div>
+          </div>`;
+        document.getElementById('stat-labels').textContent = '0';
+        document.getElementById('stat-comparisons').textContent = '0';
+        return;
+      }
+
+      let labelCount = 0;
+      const rows = await Promise.all(prods.items.map(async (prod) => {
+        try {
+          const labels = await api.get(`/api/v1/products/${prod.id}/labels?page=1&page_size=1`);
+          if (labels) labelCount += labels.total;
+        } catch {}
+        return prod;
+      }));
+
+      document.getElementById('stat-labels').textContent = labelCount;
+      document.getElementById('stat-comparisons').textContent = '0';
+
+      container.innerHTML = rows.map(p => `
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.75rem 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;border-radius:8px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--primary)">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+            <div style="font-size:0.75rem;color:var(--text-muted)">${p.brand || 'Sin marca'} &bull; ${fmtRelative(p.updated_at)}</div>
+          </div>
+          <a href="${ROOT}/products/${p.id}" class="btn btn-ghost btn-sm">Ver</a>
+        </div>`).join('');
+
+    } catch(e) {
+      container.innerHTML = `<div class="alert alert-error">${e.message || 'Error cargando actividad'}</div>`;
+    }
+  }
+
+  loadStats();
+  loadActivity();
+})();
+</script>
+{% endblock %}

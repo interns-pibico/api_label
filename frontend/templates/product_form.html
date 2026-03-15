@@ -1,0 +1,909 @@
+{% extends "base.html" %}
+{% block title %}Producto{% endblock %}
+{% set active_page = "products" %}
+
+{% block content %}
+<div class="page-header-row">
+  <a href="{{ root_path }}/products" class="btn btn-ghost btn-icon btn-sm" title="Volver a productos">
+    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+  </a>
+  <h1 id="page-title" class="page-header-title">Nuevo producto</h1>
+</div>
+
+<div id="error-msg" class="alert alert-error hidden" role="alert"></div>
+
+<form id="product-form" novalidate>
+  {# Basic info card #}
+  <div class="card mb-4">
+    <div class="card-title">Información básica</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="name">Nombre del producto <span class="required">*</span></label>
+        <input id="name" name="name" type="text" class="form-control" required placeholder="Nombre completo del producto">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="brand">Marca</label>
+        <input id="brand" name="brand" type="text" class="form-control" placeholder="Marca o fabricante">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" for="barcode">Código de barras (EAN)</label>
+        <div class="input-with-scan">
+          <input id="barcode" name="barcode" type="text" class="form-control mono" placeholder="ej. 8410076480806" inputmode="numeric">
+          <button type="button" class="btn btn-outline btn-icon" id="btn-scan-barcode" title="Escanear con cámara">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><path d="M21 16h-3v3"/><path d="M18 21h3"/><path d="M9 3h1M9 21h3M21 9v1M3 9h1M12 3v3M12 9v1M3 14v1M12 14v3"/></svg>
+          </button>
+          <button type="button" class="btn btn-outline hidden" id="btn-lookup-obf" title="Buscar en Open Beauty Facts">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span class="btn-obf-label">OBF</span>
+          </button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="category_id">Categoría <span class="required">*</span></label>
+        <select id="category_id" name="category_id" class="form-control" required>
+          <option value="">Selecciona una categoría...</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="description">Descripción</label>
+      <textarea id="description" name="description" class="form-control" placeholder="Descripción del producto..." rows="3"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="image_url">URL de imagen</label>
+      <input id="image_url" name="image_url" type="url" class="form-control" placeholder="https://...">
+    </div>
+  </div>
+
+  {# Dynamic regulatory fields (loaded based on category) #}
+  <div id="regulatory-card" class="card mb-4 hidden">
+    <div class="card-title" id="regulatory-title">Datos reglamentarios</div>
+    <div id="regulatory-fields"></div>
+  </div>
+
+  {# Cosmetic-specific sections (shown only for cosmetica_eu category) #}
+  <div id="cosm-ingredientes-card" class="card mb-4 hidden">
+    <div class="card-title">Ingredientes</div>
+    <div class="form-group">
+      <label class="form-label" for="cosm-ingredientes">Lista INCI de ingredientes</label>
+      <textarea id="cosm-ingredientes" name="cosm_ingredientes" class="form-control" rows="5"
+        placeholder="Aqua, Glycerin, Cetearyl Alcohol..."></textarea>
+      <p class="form-hint cosm-inci-hint">Los ingredientes deben listarse en orden decreciente de concentracion (INCI)</p>
+      <a id="btn-ver-ingredientes-img" class="btn btn-outline btn-sm mt-2 hidden" target="_blank" rel="noopener noreferrer">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        Ver foto de ingredientes (OBF)
+      </a>
+    </div>
+  </div>
+
+  <div id="cosm-regulatory-card" class="card mb-4 hidden">
+    <div class="card-title">Datos regulatorios (CE 1223/2009)</div>
+
+    <div class="cosm-fields-group">
+      <div class="cosm-group-label">Identificacion del producto</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="cosm-contenido">Contenido neto</label>
+          <input id="cosm-contenido" type="text" class="form-control" placeholder="ej. 150 ml, 50 g" data-cosm-key="contenido_neto">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cosm-pais">Pais de fabricacion</label>
+          <input id="cosm-pais" type="text" class="form-control" placeholder="ej. Espana, Francia" data-cosm-key="pais_fabricacion">
+        </div>
+      </div>
+    </div>
+
+    <div class="cosm-fields-group">
+      <div class="cosm-group-label">Clasificacion y uso</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="cosm-funcion">Funcion del producto</label>
+          <select id="cosm-funcion" class="form-control" data-cosm-key="funcion">
+            <option value="">Selecciona una funcion...</option>
+            <option value="Hidratante">Hidratante</option>
+            <option value="Limpiador">Limpiador</option>
+            <option value="Perfume">Perfume</option>
+            <option value="Maquillaje">Maquillaje</option>
+            <option value="Capilar">Capilar</option>
+            <option value="Solar">Solar</option>
+            <option value="Otro">Otro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cosm-pao">PAO — Periodo de uso tras apertura</label>
+          <div class="cosm-pao-wrap">
+            <input id="cosm-pao" type="number" class="form-control cosm-pao-input" min="0" max="99"
+              placeholder="0" data-cosm-key="pao_meses">
+            <span class="cosm-pao-unit">meses</span>
+          </div>
+          <p class="form-hint">0 = sin PAO (producto de un solo uso o duracion mayor a 30 meses)</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="cosm-fields-group">
+      <div class="cosm-group-label">Trazabilidad</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="cosm-lote">Numero de lote</label>
+          <input id="cosm-lote" type="text" class="form-control mono" placeholder="ej. LOT2025031A" data-cosm-key="numero_lote">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="cosm-conservacion">Condiciones de conservacion</label>
+          <input id="cosm-conservacion" type="text" class="form-control"
+            placeholder="ej. Conservar en lugar fresco y seco" data-cosm-key="conservacion">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="cosm-responsable">Persona responsable UE</label>
+        <textarea id="cosm-responsable" class="form-control" rows="2"
+          placeholder="Nombre y direccion de la persona responsable en la UE" data-cosm-key="responsable_ue"></textarea>
+      </div>
+    </div>
+
+    <div class="cosm-fields-group">
+      <div class="cosm-group-label">Advertencias</div>
+      <div class="form-group">
+        <label class="form-label" for="cosm-advertencias">Advertencias de uso</label>
+        <textarea id="cosm-advertencias" class="form-control" rows="3"
+          placeholder="ej. Mantener fuera del alcance de los ninos. Evitar el contacto con los ojos." data-cosm-key="advertencias"></textarea>
+      </div>
+    </div>
+  </div>
+
+  {# Submit #}
+  <div class="flex gap-3 flex-wrap">
+    <button type="submit" class="btn btn-primary" id="submit-btn">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span id="submit-text">Guardar producto</span>
+      <span id="submit-spinner" class="spinner hidden" style="width:16px;height:16px;border-width:2px"></span>
+    </button>
+    <a href="{{ root_path }}/products" class="btn btn-ghost">Cancelar</a>
+  </div>
+</form>
+<!-- Scanner modal -->
+<div id="scan-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Escanear código de barras">
+  <div class="modal-card scan-modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+      <h3 style="font-size:1rem;font-weight:700;margin:0">Escanear código de barras</h3>
+      <button type="button" class="btn btn-ghost btn-icon btn-sm" id="btn-close-scan" aria-label="Cerrar">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="scan-viewport">
+      <video id="scan-video" autoplay playsinline muted></video>
+      <canvas id="scan-canvas" style="display:none"></canvas>
+      <div class="scan-crosshair"></div>
+    </div>
+    <p class="text-sm text-muted" style="text-align:center;margin-top:0.6rem;margin-bottom:0.75rem">Apunta al código de barras del producto</p>
+    <div class="scan-divider"><span>o</span></div>
+    <label class="btn btn-outline btn-block" style="cursor:pointer;margin-top:0.75rem">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right:0.4rem"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Subir imagen del código
+      <input type="file" id="scan-file-input" accept="image/*" style="display:none">
+    </label>
+    <div id="scan-file-error" class="text-sm" style="color:var(--error);text-align:center;margin-top:0.5rem;display:none"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ root_path }}/static/vendor/jsqr/jsqr.js"></script>
+<script src="{{ root_path }}/static/vendor/zxing/zxing.min.js"></script>
+<script>
+(function() {
+  if (!Auth.requireAuth()) return;
+
+  function translateField(key) {
+    const map = {
+      energy_kj: 'Energia (kJ)',
+      energy_kcal: 'Energia (kcal)',
+      fat_g: 'Grasas (g)',
+      fat: 'Grasas (g)',
+      saturated_fat_g: 'Acidos grasos saturados (g)',
+      saturated_fat: 'Acidos grasos saturados (g)',
+      carbohydrates_g: 'Hidratos de carbono (g)',
+      carbohydrates: 'Hidratos de carbono (g)',
+      sugars_g: 'Azucares (g)',
+      sugars: 'Azucares (g)',
+      protein_g: 'Proteinas (g)',
+      proteins: 'Proteinas (g)',
+      protein: 'Proteinas (g)',
+      salt_g: 'Sal (g)',
+      salt: 'Sal (g)',
+      fiber_g: 'Fibra alimentaria (g)',
+      fiber: 'Fibra alimentaria (g)',
+      net_weight: 'Peso neto',
+      net_weight_unit: 'Unidad de peso',
+      serving_size: 'Tamano de porcion',
+      servings: 'Porciones por envase',
+      servings_per_container: 'Porciones por envase',
+      ingredients: 'Ingredientes',
+      allergens: 'Alergenos',
+      may_contain: 'Puede contener',
+      storage_conditions: 'Condiciones de almacenamiento',
+      best_before: 'Consumir preferentemente antes de',
+      use_by: 'Fecha de caducidad',
+      country_of_origin: 'Pais de origen',
+      manufacturer: 'Fabricante',
+      manufacturer_address: 'Direccion del fabricante',
+      producer_name: 'Nombre del productor',
+      producer_address: 'Direccion del productor',
+      distributor: 'Distribuidor',
+      volume_ml: 'Volumen (ml)',
+      weight_g: 'Peso (g)',
+      inci_list: 'Lista INCI',
+      warnings: 'Advertencias',
+      usage_instructions: 'Instrucciones de uso',
+      batch_number: 'Numero de lote',
+      certifications: 'Certificaciones',
+    };
+    return map[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  // Determine if editing (URL pattern: /products/{id}/edit)
+  const pathParts = window.location.pathname.split('/');
+  const editIdx   = pathParts.indexOf('edit');
+  const productId = editIdx > 0 ? pathParts[editIdx - 1] : null;
+  const isEdit    = !!productId && productId !== 'new';
+
+  const form     = document.getElementById('product-form');
+  const errMsg   = document.getElementById('error-msg');
+  const btn      = document.getElementById('submit-btn');
+  const spinner  = document.getElementById('submit-spinner');
+  const btnText  = document.getElementById('submit-text');
+  const catSel   = document.getElementById('category_id');
+  const regCard  = document.getElementById('regulatory-card');
+  const regFields = document.getElementById('regulatory-fields');
+  const regTitle  = document.getElementById('regulatory-title');
+
+  // Cosmetic-section elements
+  const cosmIngCard = document.getElementById('cosm-ingredientes-card');
+  const cosmRegCard = document.getElementById('cosm-regulatory-card');
+  const btnOBF      = document.getElementById('btn-lookup-obf');
+
+  // Update page title
+  if (isEdit) {
+    document.getElementById('page-title').textContent = 'Editar producto';
+    document.getElementById('submit-text').textContent = 'Actualizar producto';
+  }
+
+  // ── Detect active sector (from URL param or sessionStorage) ──
+  const urlParams      = new URLSearchParams(window.location.search);
+  const prefillBarcode = urlParams.get('barcode');
+  const sectorFromUrl  = urlParams.get('sector');
+  let activeSectorObj  = null;
+  try {
+    activeSectorObj = JSON.parse(sessionStorage.getItem('activeSector') || 'null');
+  } catch(_) {}
+  const activeSector = sectorFromUrl || (activeSectorObj && activeSectorObj.sector) || '';
+
+  if (prefillBarcode) {
+    document.getElementById('barcode').value = prefillBarcode;
+  }
+
+  // Show OBF button when sector is cosmetica
+  const isCosmetic = activeSector === 'cosmetica';
+  if (isCosmetic && btnOBF) {
+    btnOBF.classList.remove('hidden');
+  }
+
+  // ── Cosmetic barcode lookup (Open Beauty Facts) ──────────
+  async function lookupCosmeticBarcode(barcode) {
+    if (!barcode) { Toast.warning('Introduce un codigo de barras primero.'); return; }
+    Toast.info('Buscando en Open Beauty Facts...');
+    try {
+      const resp = await api.get('/api/v1/products/lookup-cosmetic?barcode=' + encodeURIComponent(barcode));
+      const d = resp.datos || resp; // data lives under .datos
+
+      // Basic fields
+      if (d.nombre)     document.getElementById('name').value      = d.nombre;
+      if (d.marca)      document.getElementById('brand').value     = d.marca;
+      if (d.imagen_url) document.getElementById('image_url').value = d.imagen_url;
+
+      // Cosmetic-specific fields
+      if (d.ingredientes_inci)        document.getElementById('cosm-ingredientes').value = d.ingredientes_inci;
+      if (d.contenido_neto)           document.getElementById('cosm-contenido').value    = d.contenido_neto;
+      if (d.pais_fabricacion)         document.getElementById('cosm-pais').value         = d.pais_fabricacion;
+      if (d.condiciones_conservacion) document.getElementById('cosm-conservacion').value = d.condiciones_conservacion;
+      if (d.advertencias)             document.getElementById('cosm-advertencias').value = d.advertencias;
+      if (d.pao_meses != null && d.pao_meses !== undefined) {
+        document.getElementById('cosm-pao').value = d.pao_meses;
+      }
+
+      // Show ingredients photo link when OBF has image but no INCI text
+      const btnIngImg = document.getElementById('btn-ver-ingredientes-img');
+      if (btnIngImg) {
+        if (d.imagen_ingredientes_url && !d.ingredientes_inci) {
+          btnIngImg.href = d.imagen_ingredientes_url;
+          btnIngImg.classList.remove('hidden');
+        } else {
+          btnIngImg.classList.add('hidden');
+        }
+      }
+
+      Toast.success('Datos actualizados desde Open Beauty Facts');
+    } catch(e) {
+      if (e.status === 404) {
+        Toast.warning('Producto no encontrado en Open Beauty Facts. Completa los datos manualmente.');
+      } else {
+        Toast.warning('No se pudo obtener datos. Barcode guardado.');
+      }
+    }
+  }
+
+  if (btnOBF) {
+    btnOBF.addEventListener('click', () => {
+      const barcode = document.getElementById('barcode').value.trim();
+      lookupCosmeticBarcode(barcode);
+    });
+  }
+
+  // Auto-trigger OBF on barcode blur/enter when in cosmetic sector
+  if (isCosmetic) {
+    const barcodeInput = document.getElementById('barcode');
+    let lastLookedUp = '';
+    const triggerOBF = () => {
+      const val = barcodeInput.value.trim();
+      if (val && val !== lastLookedUp && val.length >= 8) {
+        lastLookedUp = val;
+        lookupCosmeticBarcode(val);
+      }
+    };
+    barcodeInput.addEventListener('blur', triggerOBF);
+    barcodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); triggerOBF(); } });
+  }
+
+  // ── Hide/show cosmetic section cards ────────────────────
+  function showCosmeticSections(show) {
+    cosmIngCard && cosmIngCard.classList.toggle('hidden', !show);
+    cosmRegCard && cosmRegCard.classList.toggle('hidden', !show);
+  }
+
+  // ── Load categories ──────────────────────────────────────
+  let categoriesMap = {};
+  async function loadCategories() {
+    try {
+      const sectorParam = activeSector ? `&sector=${encodeURIComponent(activeSector)}` : '';
+      const data = await api.get(`/api/v1/categories?page=1&page_size=100${sectorParam}`);
+      if (data && data.items) {
+        data.items.forEach(c => {
+          categoriesMap[c.id] = c;
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          catSel.appendChild(opt);
+        });
+
+        // Auto-select category when only one (typical for cosmetica/alimentacion sectors)
+        if (!isEdit && data.items.length === 1) {
+          catSel.value = data.items[0].id;
+          catSel.dispatchEvent(new Event('change'));
+        }
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  // ── Dynamic regulatory fields ────────────────────────────
+  catSel.addEventListener('change', async () => {
+    const catId = catSel.value;
+    // Hide everything when no category
+    if (!catId) {
+      regCard.classList.add('hidden');
+      showCosmeticSections(false);
+      return;
+    }
+
+    try {
+      const cat = await api.get(`/api/v1/categories/${catId}`);
+      if (!cat) { regCard.classList.add('hidden'); showCosmeticSections(false); return; }
+
+      // Detect cosmetica_eu to use dedicated cosmetic UI
+      const isCosmeticCat = (cat.slug === 'cosmetica_eu' || cat.code === 'cosmetica_eu');
+      if (isCosmeticCat) {
+        regCard.classList.add('hidden');
+        showCosmeticSections(true);
+        return;
+      }
+
+      // For all other categories, hide cosmetic sections and use generic/nutrition UI
+      showCosmeticSections(false);
+      if (!cat.schema_definition) { regCard.classList.add('hidden'); return; }
+      renderRegulatoryFields(cat);
+    } catch {
+      regCard.classList.add('hidden');
+      showCosmeticSections(false);
+    }
+  });
+
+  function renderRegulatoryFields(cat) {
+    const schema = cat.schema_definition;
+    if (!schema || !schema.properties) {
+      regCard.classList.add('hidden');
+      return;
+    }
+
+    regTitle.textContent = `Datos reglamentarios — ${cat.name}`;
+    regCard.classList.remove('hidden');
+    regFields.innerHTML = '';
+
+    const required = schema.required || [];
+
+    // Special rendering for nutrition_eu category
+    if (cat.slug === 'nutrition_eu' || cat.code === 'nutrition_eu') {
+      renderNutritionFields(schema, required);
+      return;
+    }
+
+    // Generic field rendering
+    Object.entries(schema.properties).forEach(([key, prop]) => {
+      const isReq = required.includes(key);
+      const label = prop.title || translateField(key);
+      const type  = prop.type === 'number' || prop.type === 'integer' ? 'number' : 'text';
+
+      const div = document.createElement('div');
+      div.className = 'form-group';
+      div.innerHTML = `
+        <label class="form-label" for="reg_${key}">${label}${isReq ? ' <span class="required">*</span>' : ''}</label>
+        <input id="reg_${key}" name="reg_${key}" type="${type}" class="form-control"
+               placeholder="${prop.description || ''}" ${isReq ? 'required' : ''} data-reg-key="${key}">
+        ${prop.description ? `<p class="form-hint">${prop.description}</p>` : ''}`;
+      regFields.appendChild(div);
+    });
+  }
+
+  function renderNutritionFields(schema, required) {
+    const props = schema.properties;
+    const groups = {
+      'Informacion general': ['net_weight', 'net_weight_unit', 'servings', 'serving_size', 'storage_conditions'],
+      'Valores nutricionales (por 100g/100ml)': ['energy_kj', 'energy_kcal', 'fat', 'saturated_fat', 'carbohydrates', 'sugars', 'fiber', 'protein', 'salt'],
+      'Ingredientes y alergenos': ['ingredients', 'allergens', 'may_contain'],
+      'Informacion adicional': ['country_of_origin', 'producer_name', 'producer_address', 'distributor'],
+    };
+
+    Object.entries(groups).forEach(([groupName, keys]) => {
+      const groupKeys = keys.filter(k => props[k]);
+      if (!groupKeys.length) return;
+
+      const groupDiv = document.createElement('div');
+      groupDiv.innerHTML = `<div style="font-weight:600;font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin:1rem 0 0.5rem;padding-top:0.75rem;border-top:1px solid var(--border)">${groupName}</div>`;
+      regFields.appendChild(groupDiv);
+
+      const grid = document.createElement('div');
+      grid.className = 'form-row';
+
+      groupKeys.forEach(key => {
+        const prop  = props[key];
+        const isReq = required.includes(key);
+        const label = prop.title || translateField(key);
+        const isTextarea = key === 'ingredients' || key === 'allergens' || key === 'may_contain';
+        const type  = prop.type === 'number' ? 'number' : 'text';
+
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        if (isTextarea) {
+          div.innerHTML = `
+            <label class="form-label" for="reg_${key}">${label}${isReq ? ' <span class="required">*</span>' : ''}</label>
+            <textarea id="reg_${key}" name="reg_${key}" class="form-control" rows="2"
+                      placeholder="${prop.description || ''}" ${isReq ? 'required' : ''} data-reg-key="${key}"></textarea>`;
+        } else {
+          div.innerHTML = `
+            <label class="form-label" for="reg_${key}">${label}${isReq ? ' <span class="required">*</span>' : ''}
+              ${prop.unit ? `<small class="text-muted">(${prop.unit})</small>` : ''}</label>
+            <input id="reg_${key}" name="reg_${key}" type="${type}" class="form-control"
+                   placeholder="${prop.description || prop.example || ''}"
+                   ${isReq ? 'required' : ''} data-reg-key="${key}"
+                   ${prop.type === 'number' ? 'step="0.01"' : ''}>`;
+        }
+        grid.appendChild(div);
+      });
+      regFields.appendChild(grid);
+    });
+  }
+
+  // ── Load existing product data ───────────────────────────
+  async function loadProduct() {
+    if (!isEdit) return;
+    try {
+      const product = await api.get(`/api/v1/products/${productId}`);
+      if (!product) return;
+
+      document.getElementById('name').value        = product.name || '';
+      document.getElementById('brand').value       = product.brand || '';
+      document.getElementById('barcode').value     = product.barcode || '';
+      document.getElementById('description').value = product.description || '';
+      document.getElementById('image_url').value   = product.image_url || '';
+
+      if (product.category_id) {
+        catSel.value = product.category_id;
+        catSel.dispatchEvent(new Event('change'));
+
+        // Wait for fields to render then fill them
+        setTimeout(() => {
+          if (product.regulatory_data) {
+            // Fill generic reg fields (data-reg-key)
+            Object.entries(product.regulatory_data).forEach(([key, val]) => {
+              const el = document.querySelector(`[data-reg-key="${key}"]`);
+              if (el) el.value = val != null ? val : '';
+            });
+
+            // Fill cosmetic-specific fields (data-cosm-key)
+            Object.entries(product.regulatory_data).forEach(([key, val]) => {
+              const el = document.querySelector(`[data-cosm-key="${key}"]`);
+              if (el) el.value = val != null ? val : '';
+            });
+
+            // Fill INCI textarea separately (stored under ingredientes_inci key)
+            const inciEl = document.getElementById('cosm-ingredientes');
+            if (inciEl && product.regulatory_data.ingredientes_inci) {
+              inciEl.value = product.regulatory_data.ingredientes_inci;
+            }
+          }
+        }, 500);
+      }
+    } catch(e) {
+      errMsg.textContent = 'Error cargando datos del producto: ' + e.message;
+      errMsg.classList.remove('hidden');
+    }
+  }
+
+  // ── Submit ───────────────────────────────────────────────
+  function setLoading(on) {
+    btn.disabled = on;
+    spinner.classList.toggle('hidden', !on);
+    btnText.textContent = on ? 'Guardando...' : (isEdit ? 'Actualizar producto' : 'Guardar producto');
+  }
+
+  function collectRegulatoryData() {
+    const data = {};
+
+    // Generic schema-driven fields (nutrition_eu + others)
+    document.querySelectorAll('[data-reg-key]').forEach(el => {
+      const key = el.dataset.regKey;
+      const val = el.value.trim();
+      if (val !== '') {
+        data[key] = el.type === 'number' ? parseFloat(val) : val;
+      }
+    });
+
+    // Cosmetic dedicated fields (data-cosm-key)
+    document.querySelectorAll('[data-cosm-key]').forEach(el => {
+      const key = el.dataset.cosmKey;
+      const val = el.value.trim();
+      if (val !== '') {
+        data[key] = el.type === 'number' ? parseFloat(val) : val;
+      }
+    });
+
+    // INCI textarea (stored separately with its own key)
+    const inciEl = document.getElementById('cosm-ingredientes');
+    if (inciEl && !inciEl.closest('.hidden') && inciEl.value.trim()) {
+      data['ingredientes_inci'] = inciEl.value.trim();
+    }
+
+    return Object.keys(data).length ? data : null;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errMsg.classList.add('hidden');
+
+    const name     = document.getElementById('name').value.trim();
+    const category = document.getElementById('category_id').value;
+
+    if (!name) { errMsg.textContent = 'El nombre es obligatorio.'; errMsg.classList.remove('hidden'); return; }
+    if (!category) { errMsg.textContent = 'Selecciona una categoria.'; errMsg.classList.remove('hidden'); return; }
+
+    const payload = {
+      name,
+      brand:           document.getElementById('brand').value.trim() || null,
+      barcode:         document.getElementById('barcode').value.trim() || null,
+      category_id:     category,
+      description:     document.getElementById('description').value.trim() || null,
+      image_url:       document.getElementById('image_url').value.trim() || null,
+      regulatory_data: collectRegulatoryData(),
+    };
+
+    setLoading(true);
+    try {
+      let product;
+      if (isEdit) {
+        product = await api.put(`/api/v1/products/${productId}`, payload);
+        Toast.success('Producto actualizado correctamente');
+      } else {
+        product = await api.post('/api/v1/products', payload);
+        Toast.success('Producto creado correctamente');
+      }
+      setTimeout(() => { window.location.href = `${ROOT}/products/${product.id}`; }, 800);
+    } catch(e) {
+      errMsg.textContent = e.message || 'Error al guardar el producto';
+      errMsg.classList.remove('hidden');
+      setLoading(false);
+    }
+  });
+
+  // ── Barcode scanner ──────────────────────────────────────
+  const btnScan      = document.getElementById('btn-scan-barcode');
+  const scanModal    = document.getElementById('scan-modal');
+  const btnCloseScan = document.getElementById('btn-close-scan');
+  const scanVideo    = document.getElementById('scan-video');
+  const scanCanvas   = document.getElementById('scan-canvas');
+  const scanCtx      = scanCanvas.getContext('2d');
+  let scanStream = null, scanRaf = null;
+
+  function closeScan() {
+    if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+    if (scanRaf)    { cancelAnimationFrame(scanRaf); scanRaf = null; }
+    scanModal.classList.add('hidden');
+  }
+
+  // OFF field keys → form data-reg-key mapping
+  const OFF_KEY_MAP = {
+    fat_g:            'fat',
+    saturated_fat_g:  'saturated_fat',
+    carbohydrates_g:  'carbohydrates',
+    sugars_g:         'sugars',
+    protein_g:        'protein',
+    salt_g:           'salt',
+    fiber_g:          'fiber',
+    energy_kj:        'energy_kj',
+    energy_kcal:      'energy_kcal',
+  };
+
+  async function onScanDetected(value) {
+    closeScan();
+    document.getElementById('barcode').value = value;
+
+    // If cosmetic sector, use OBF lookup
+    if (isCosmetic) {
+      lookupCosmeticBarcode(value);
+      return;
+    }
+
+    Toast.info('Buscando producto...');
+
+    try {
+      const resp = await fetch(ROOT + '/api/v1/off/barcode-search/' + encodeURIComponent(value), {
+        credentials: 'include'
+      });
+
+      if (resp.status === 404) {
+        Toast.warning('Codigo escaneado (' + value + ') no encontrado en Open Food Facts. Puedes completar los datos manualmente.');
+        return;
+      }
+      if (!resp.ok) { Toast.error('Error al buscar el producto'); return; }
+
+      const data = await resp.json();
+
+      // Fill basic fields
+      if (data.name)      document.getElementById('name').value      = data.name;
+      if (data.brand)     document.getElementById('brand').value     = data.brand;
+      if (data.image_url) document.getElementById('image_url').value = data.image_url;
+
+      // Fill regulatory fields — wait a tick in case category change is still rendering
+      const fillReg = () => {
+        Object.entries(data.regulatory_data || {}).forEach(([k, v]) => {
+          const formKey = OFF_KEY_MAP[k] || k;
+          const el = document.querySelector(`[data-reg-key="${formKey}"]`);
+          if (el && v !== null && v !== undefined) el.value = v;
+        });
+      };
+
+      // If category not yet selected, leave it; if already selected, fill immediately
+      if (document.querySelector('[data-reg-key]')) {
+        fillReg();
+      } else {
+        setTimeout(fillReg, 600);
+      }
+
+      Toast.success('Datos actualizados desde Open Food Facts');
+    } catch(e) {
+      Toast.warning('No se pudo obtener datos del producto. Barcode guardado.');
+    }
+  }
+
+  btnCloseScan.addEventListener('click', closeScan);
+  scanModal.addEventListener('click', e => { if (e.target === scanModal) closeScan(); });
+
+  // ── Image upload barcode detection ────────────────────────
+  const fileInput   = document.getElementById('scan-file-input');
+  const fileError   = document.getElementById('scan-file-error');
+
+  async function detectBarcodeFromImage(file) {
+    fileError.style.display = 'none';
+    fileError.textContent = '';
+
+    const url = URL.createObjectURL(file);
+    try {
+      // 1. BarcodeDetector nativo (Chrome/Edge)
+      if ('BarcodeDetector' in window) {
+        try {
+          const bmp     = await createImageBitmap(file);
+          const detector= new BarcodeDetector({ formats: ['ean_13','ean_8','qr_code','code_128','upc_a','upc_e'] });
+          const codes   = await detector.detect(bmp);
+          if (codes.length) { URL.revokeObjectURL(url); onScanDetected(codes[0].rawValue); return; }
+        } catch(_) {}
+      }
+
+      // 2. ZXing
+      if (typeof ZXing !== 'undefined') {
+        try {
+          const hints = new Map();
+          hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+            ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+            ZXing.BarcodeFormat.CODE_128, ZXing.BarcodeFormat.QR_CODE,
+            ZXing.BarcodeFormat.UPC_A,   ZXing.BarcodeFormat.UPC_E,
+          ]);
+          hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+          const reader = new ZXing.MultiFormatReader();
+          reader.setHints(hints);
+
+          const img = await loadImage(url);
+          const scale = Math.max(1, Math.ceil(400 / Math.min(img.naturalWidth, img.naturalHeight)));
+          const w = img.naturalWidth  * scale;
+          const h = img.naturalHeight * scale;
+          scanCanvas.width  = w;
+          scanCanvas.height = h;
+          scanCtx.imageSmoothingEnabled = false;
+          scanCtx.drawImage(img, 0, 0, w, h);
+
+          const idata    = scanCtx.getImageData(0, 0, w, h);
+          const rgba     = idata.data;
+          const lumaData = new Uint8ClampedArray(w * h);
+          for (let i = 0; i < lumaData.length; i++) {
+            lumaData[i] = (0.299 * rgba[i*4] + 0.587 * rgba[i*4+1] + 0.114 * rgba[i*4+2]) | 0;
+          }
+          const scales = [scale, Math.max(1, scale * 2), 1];
+          const Bins   = [ZXing.GlobalHistogramBinarizer, ZXing.HybridBinarizer];
+          let decoded  = null;
+          outer: for (const sc of scales) {
+            const sw = img.naturalWidth * sc, sh = img.naturalHeight * sc;
+            scanCanvas.width = sw; scanCanvas.height = sh;
+            scanCtx.imageSmoothingEnabled = false;
+            scanCtx.drawImage(img, 0, 0, sw, sh);
+            const idSc   = scanCtx.getImageData(0, 0, sw, sh);
+            const rgbaSc = idSc.data;
+            const lumaSc = new Uint8ClampedArray(sw * sh);
+            for (let i = 0; i < lumaSc.length; i++)
+              lumaSc[i] = (0.299 * rgbaSc[i*4] + 0.587 * rgbaSc[i*4+1] + 0.114 * rgbaSc[i*4+2]) | 0;
+            const src = new ZXing.RGBLuminanceSource(lumaSc, sw, sh);
+            for (const Bin of Bins) {
+              try {
+                decoded = reader.decode(new ZXing.BinaryBitmap(new Bin(src)));
+                break outer;
+              } catch(e) { /* try next */ }
+            }
+          }
+          if (decoded) {
+            URL.revokeObjectURL(url);
+            onScanDetected(decoded.getText());
+            return;
+          }
+          console.warn('ZXing: no barcode found after all attempts');
+        } catch(zxErr) { console.warn('ZXing decode failed:', zxErr?.message || zxErr); }
+      }
+
+      // 3. jsQR — solo QR codes, ultimo recurso
+      const img = await loadImage(url);
+      scanCanvas.width  = img.naturalWidth;
+      scanCanvas.height = img.naturalHeight;
+      scanCtx.drawImage(img, 0, 0);
+      const data = scanCtx.getImageData(0, 0, img.naturalWidth, img.naturalHeight);
+      const code = jsQR(data.data, data.width, data.height, { inversionAttempts: 'attemptBoth' });
+      URL.revokeObjectURL(url);
+      if (code?.data) { onScanDetected(code.data); return; }
+
+      fileError.textContent = 'No se detecto ningun codigo. Asegurate de que la imagen muestre el codigo de barras claramente.';
+      fileError.style.display = 'block';
+    } catch(e) {
+      URL.revokeObjectURL(url);
+      fileError.textContent = 'Error al procesar la imagen.';
+      fileError.style.display = 'block';
+    }
+  }
+
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload  = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  fileInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) detectBarcodeFromImage(file);
+    fileInput.value = '';
+  });
+
+  btnScan.addEventListener('click', async () => {
+    scanModal.classList.remove('hidden');
+    fileError.style.display = 'none';
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      scanVideo.style.display = 'none';
+      document.querySelector('.scan-crosshair').style.display = 'none';
+      fileError.textContent = 'Camara no disponible en este navegador. Usa la opcion de subir imagen.';
+      fileError.style.display = 'block';
+      return;
+    }
+    try {
+      scanStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      scanVideo.style.display = '';
+      document.querySelector('.scan-crosshair').style.display = '';
+      scanVideo.srcObject = scanStream;
+
+      if ('BarcodeDetector' in window) {
+        const detector = new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'qr_code', 'code_128', 'upc_a'] });
+        const loop = async () => {
+          if (!scanStream) return;
+          try {
+            const codes = await detector.detect(scanVideo);
+            if (codes.length) { onScanDetected(codes[0].rawValue); return; }
+          } catch(_) {}
+          scanRaf = requestAnimationFrame(loop);
+        };
+        scanVideo.addEventListener('loadeddata', () => { scanRaf = requestAnimationFrame(loop); }, { once: true });
+      } else {
+        const loop = () => {
+          if (!scanStream) return;
+          if (scanVideo.readyState === scanVideo.HAVE_ENOUGH_DATA) {
+            scanCanvas.width  = scanVideo.videoWidth;
+            scanCanvas.height = scanVideo.videoHeight;
+            scanCtx.drawImage(scanVideo, 0, 0, scanCanvas.width, scanCanvas.height);
+            const img  = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+            const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+            if (code?.data) { onScanDetected(code.data); return; }
+          }
+          scanRaf = requestAnimationFrame(loop);
+        };
+        scanVideo.addEventListener('loadeddata', () => { scanRaf = requestAnimationFrame(loop); }, { once: true });
+      }
+    } catch(e) {
+      scanVideo.style.display = 'none';
+      document.querySelector('.scan-crosshair').style.display = 'none';
+      fileError.textContent = 'No se pudo acceder a la camara. Usa la opcion de subir imagen.';
+      fileError.style.display = 'block';
+    }
+  });
+
+  loadCategories().then(() => loadProduct());
+})();
+</script>
+
+<style>
+  .page-header-row { display:flex; align-items:center; gap:0.5rem; margin-bottom:1.25rem; }
+  .page-header-title { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  /* Barcode input + scan button */
+  .input-with-scan { display:flex; gap:0.5rem; align-items:center; }
+  .input-with-scan .form-control { flex:1; min-width:0; }
+
+  /* Scanner modal */
+  .scan-modal-card { width:100%; max-width:400px; }
+  .scan-viewport {
+    position:relative; background:#000;
+    border-radius:var(--radius-sm); overflow:hidden; aspect-ratio:4/3;
+  }
+  .scan-viewport video { width:100%; height:100%; object-fit:cover; display:block; }
+  .scan-crosshair {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:65%; max-width:230px; aspect-ratio:2.5/1;
+    border:2px solid var(--primary); border-radius:4px;
+    box-shadow:0 0 0 9999px rgba(0,0,0,0.45);
+  }
+  .scan-divider {
+    display:flex; align-items:center; gap:0.75rem;
+    color:var(--text-muted); font-size:0.8rem;
+  }
+  .scan-divider::before,.scan-divider::after {
+    content:''; flex:1; height:1px; background:var(--border);
+  }
+</style>
+{% endblock %}
