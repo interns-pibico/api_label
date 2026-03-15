@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     ROOT_PATH: str = "/label"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://root:psql4Pibi@localhost:5432/api_label_psql"
+    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/api_label_psql"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/3"

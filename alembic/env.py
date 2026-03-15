@@ -31,7 +31,7 @@ target_metadata = Base.metadata
 # Read DATABASE_URL from environment (set by .env or CI)
 database_url = os.environ.get(
     "DATABASE_URL",
-    "postgresql+asyncpg://root:psql4Pibi@localhost:5432/api_label_psql",
+    "postgresql+asyncpg://user:password@localhost:5432/api_label_psql",
 )
 
 
