@@ -240,6 +240,11 @@ async def admin_usage_page(request: Request):
     return templates.TemplateResponse("admin_usage.html", _ctx(request))
 
 
+@app.get("/legal", response_class=HTMLResponse, include_in_schema=False)
+async def legal_page(request: Request):
+    return templates.TemplateResponse("legal.html", _ctx(request))
+
+
 # ---------------------------------------------------------------------------
 # Startup / shutdown
 # ---------------------------------------------------------------------------

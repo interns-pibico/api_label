@@ -93,4 +93,6 @@ class BasketSearchResult(BaseModel):
     imagen_url: Optional[str] = None
     supermarket: Optional[str] = None
     price: Optional[float] = None
+    original_price: Optional[float] = None
+    discount_percent: Optional[float] = None
     source: Optional[str] = None  # "mis_productos" | "ofertas"

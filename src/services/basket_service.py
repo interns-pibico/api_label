@@ -214,6 +214,8 @@ class BasketService:
                             imagen_url=raw.get("imagen_url"),
                             supermarket=raw.get("fuente"),
                             price=raw.get("precio_oferta"),
+                            original_price=raw.get("precio_original"),
+                            discount_percent=raw.get("descuento_porcentaje"),
                             source="ofertas",
                         )
                     )

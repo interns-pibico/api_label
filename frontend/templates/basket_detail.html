@@ -51,11 +51,12 @@
     <!-- Search bar -->
     <div x-show="items.length < 10" class="relative mb-6">
       <div class="flex gap-2">
-        <div class="relative" style="flex:1">
+        <div style="position:relative;flex:1">
           <input x-model="searchQuery" type="text"
                  placeholder="Buscar producto (ej: leche entera, 8410...)"
                  class="form-control" style="width:100%;padding-right:2.5rem"
                  @input.debounce.400ms="searchProducts()"
+                 @keydown.enter.prevent="searchProducts()"
                  @keydown.escape="searchResults = []"
                  @focus="if(searchQuery.length >= 2) searchProducts()">
           <div style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%)">
@@ -80,9 +81,16 @@
                   <div style="font-size:0.75rem;color:var(--text-muted)"
                        x-text="result.source === 'mis_productos' ? 'Mi producto' : (result.supermarket || '')"></div>
                 </div>
-                <span x-show="result.price"
-                      style="font-size:0.875rem;font-weight:600;color:var(--primary);white-space:nowrap"
-                      x-text="result.price ? result.price.toFixed(2) + ' €' : ''"></span>
+                <div x-show="result.price" style="text-align:right;white-space:nowrap;flex-shrink:0">
+                  <span x-show="result.original_price && result.original_price > result.price"
+                        style="font-size:0.75rem;color:#CB4154;text-decoration:line-through;margin-right:0.35rem"
+                        x-text="result.original_price ? result.original_price.toFixed(2) + ' €' : ''"></span>
+                  <span style="font-size:0.875rem;font-weight:600;color:var(--primary)"
+                        x-text="result.price ? result.price.toFixed(2) + ' €' : ''"></span>
+                  <div x-show="result.discount_percent"
+                       style="font-size:0.65rem;color:#CB4154;font-weight:600;text-align:right"
+                       x-text="result.discount_percent ? '-' + result.discount_percent.toFixed(0) + '%' : ''"></div>
+                </div>
                 <span x-show="result.source === 'mis_productos'"
                       style="font-size:0.65rem;padding:0.15rem 0.4rem;background:var(--primary-light,#dbeeff);color:var(--primary);border-radius:3px;white-space:nowrap">
                   Mi producto
@@ -295,6 +303,9 @@
         <template x-if="items.filter(i => !i.best_offer).length > 0">
           <span> · <span x-text="items.filter(i => !i.best_offer).length"></span> sin precio</span>
         </template>
+      </div>
+      <div style="font-size:0.65rem;color:var(--text-muted);opacity:0.7">
+        Precios orientativos. Verifica antes de comprar.
       </div>
     </div>
     <button @click="downloadPdf()" class="btn btn-primary" style="display:flex;align-items:center;gap:0.5rem">

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Aviso Legal{% endblock %}
+
+{% block body %}
+<script>window.LABEL_ROOT = '{{ root_path }}';</script>
+
+<div style="min-height:100vh;display:flex;flex-direction:column">
+
+{# Minimal nav for public page #}
+<nav class="pub-nav" style="border-bottom:1px solid var(--border)">
+  <div class="pub-nav-inner">
+    <a href="{{ root_path }}/" class="pub-nav-logo">
+      <div class="pub-nav-logo-icon">L</div>
+      <span>Label Studio</span>
+    </a>
+    <div class="pub-nav-actions">
+      <a href="{{ root_path }}/login" class="btn btn-ghost btn-sm">Iniciar sesion</a>
+      <a href="{{ root_path }}/try" class="btn btn-primary btn-sm">Probar Gratis</a>
+    </div>
+  </div>
+</nav>
+
+<div style="max-width:800px;margin:0 auto;padding:2rem 1rem;flex:1">
+
+  <h1 style="font-size:1.75rem;font-weight:700;margin-bottom:2rem;color:var(--text)">Aviso Legal, Terminos de Servicio y Politica de Privacidad</h1>
+
+  <!-- Aviso Legal -->
+  <section id="aviso-legal" style="margin-bottom:2.5rem">
+    <h2 style="font-size:1.25rem;font-weight:600;color:var(--primary);margin-bottom:0.75rem">1. Aviso Legal</h2>
+    <p><strong>Titular:</strong> pibiCo</p>
+    <p><strong>Domicilio:</strong> Asturias, Espana</p>
+    <p><strong>Contacto:</strong> admin@pibico.es</p>
+    <p><strong>Sitio web:</strong> https://api.pibico.es/label</p>
+    <p style="margin-top:0.75rem">
+      Label Studio es un <strong>sistema de generacion de etiquetas de producto</strong> conforme a la normativa europea,
+      incluyendo el Reglamento (UE) n. 1169/2011 sobre informacion alimentaria facilitada al consumidor.
+    </p>
+  </section>
+
+  <!-- Terminos de Servicio -->
+  <section id="terminos" style="margin-bottom:2.5rem">
+    <h2 style="font-size:1.25rem;font-weight:600;color:var(--primary);margin-bottom:0.75rem">2. Terminos de Servicio</h2>
+    <ul style="padding-left:1.25rem;line-height:1.8">
+      <li>El usuario es responsable de verificar que la informacion introducida en las etiquetas sea correcta y conforme a la normativa aplicable a su producto.</li>
+      <li>Label Studio proporciona herramientas de generacion de etiquetas, pero <strong>no garantiza el cumplimiento normativo</strong> del contenido final, que depende de los datos proporcionados por el usuario.</li>
+      <li>El acceso al servicio requiere <strong>registro y suscripcion activa</strong>. Los planes disponibles se detallan en la pagina de precios.</li>
+      <li>El usuario puede probar el servicio de forma gratuita con hasta 3 productos sin necesidad de registro.</li>
+      <li>pibiCo se reserva el derecho de suspender cuentas que hagan un uso abusivo o fraudulento del servicio.</li>
+      <li>Las suscripciones pueden cancelarse en cualquier momento. El acceso se mantiene hasta el fin del periodo contratado.</li>
+    </ul>
+  </section>
+
+  <!-- Politica de Privacidad -->
+  <section id="privacidad" style="margin-bottom:2.5rem">
+    <h2 style="font-size:1.25rem;font-weight:600;color:var(--primary);margin-bottom:0.75rem">3. Politica de Privacidad</h2>
+    <p>En cumplimiento del <strong>Reglamento General de Proteccion de Datos (RGPD)</strong>:</p>
+    <ul style="padding-left:1.25rem;line-height:1.8">
+      <li><strong>Datos recogidos:</strong> email y nombre de usuario (necesarios para el registro y autenticacion).</li>
+      <li><strong>Finalidad:</strong> gestion de la cuenta de usuario, prestacion del servicio y comunicaciones relacionadas con el servicio.</li>
+      <li><strong>Base legal:</strong> consentimiento del usuario al registrarse y ejecucion del contrato de suscripcion.</li>
+      <li><strong>No se venden ni ceden datos personales a terceros.</strong></li>
+      <li><strong>Almacenamiento:</strong> los datos se almacenan en servidores ubicados en la Union Europea.</li>
+      <li><strong>Derechos:</strong> el usuario puede ejercer sus derechos de acceso, rectificacion, supresion, portabilidad y oposicion contactando a admin@pibico.es.</li>
+      <li><strong>Cookies:</strong> se utilizan unicamente cookies tecnicas y de sesion necesarias para el funcionamiento del servicio. No se emplean cookies de rastreo ni analytics de terceros.</li>
+    </ul>
+  </section>
+
+  <!-- Datos de terceros -->
+  <section id="datos-terceros" style="margin-bottom:2.5rem">
+    <h2 style="font-size:1.25rem;font-weight:600;color:var(--primary);margin-bottom:0.75rem">4. Datos de Terceros y Ofertas</h2>
+    <p>La funcionalidad de <strong>Cestas de la Compra</strong> incluye comparacion de precios con datos de ofertas de supermercados:</p>
+    <ul style="padding-left:1.25rem;line-height:1.8">
+      <li>Los datos de ofertas provienen de <strong>fuentes publicas</strong> a traves del servicio pibiCo Ofertas (api_offer).</li>
+      <li>Los precios mostrados son <strong>orientativos</strong> y pueden no reflejar el precio actual en tienda.</li>
+      <li>Las imagenes de productos se enlazan desde las fuentes originales; <strong>no se almacenan copias</strong> en nuestros servidores.</li>
+      <li>Las marcas comerciales de los supermercados pertenecen a sus respectivos propietarios.</li>
+      <li>Se recomienda siempre <strong>verificar el precio final</strong> en la web oficial o tienda fisica antes de realizar la compra.</li>
+    </ul>
+  </section>
+
+  <p style="font-size:0.8rem;color:var(--text-muted);margin-top:2rem;text-align:center">
+    Ultima actualizacion: marzo 2026
+  </p>
+
+</div>
+
+{# Minimal footer #}
+<footer style="text-align:center;padding:1.5rem;font-size:0.8rem;color:var(--text-muted);border-top:1px solid var(--border)">
+  Label Studio by PibiCo &middot; 2026
+</footer>
+
+</div>
+{% endblock %}
