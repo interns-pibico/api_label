@@ -38,6 +38,13 @@
     <span class="lv-meta-item"><span class="lv-meta-key">Generada</span><span class="lv-meta-val" id="meta-date">—</span></span>
   </div>
 
+  <div id="market-price-badge" style="display:none;text-align:center;padding:6px 0">
+    <span style="display:inline-flex;align-items:center;gap:6px;padding:4px 14px;background:var(--bg);border:1px solid var(--border);border-radius:20px;font-size:0.8rem">
+      <svg width="14" height="14" fill="none" stroke="var(--primary)" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="var(--primary)"/></svg>
+      <span id="mp-text">—</span>
+    </span>
+  </div>
+
   <div id="label-status"></div>
 
   <div class="lv-frame" id="label-frame">
@@ -92,6 +99,7 @@
     if (label.product_id) {
       btnProdLink.href = `${ROOT}/products/${label.product_id}`;
       btnProdLink.classList.remove('hidden');
+      loadMarketPriceBadge(label.product_id);
     }
 
     if (label.rendered_html) {
@@ -155,6 +163,20 @@
     } catch(e) { Toast.error(e.message || 'Error generando PDF'); }
   };
   btnPdfDl.addEventListener('click', window.downloadPdf);
+
+  async function loadMarketPriceBadge(productId) {
+    if (!productId) return;
+    try {
+      const data = await api.get(`/api/v1/products/${productId}/market-price`);
+      if (data.found) {
+        const badge = document.getElementById('market-price-badge');
+        const text = document.getElementById('mp-text');
+        const fmtP = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(v);
+        text.textContent = `Precio medio: ${fmtP(data.avg_price)} (${data.supermarkets} supermercado${data.supermarkets !== 1 ? 's' : ''})`;
+        badge.style.display = '';
+      }
+    } catch(e) { /* silently ignore */ }
+  }
 
   loadLabel(labelId);
 })();

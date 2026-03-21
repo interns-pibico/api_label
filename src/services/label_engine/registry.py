@@ -1,8 +1,10 @@
 from src.services.label_engine.base import BaseLabelGenerator
+from src.services.label_engine.cosmetic import CosmeticLabelGenerator
 from src.services.label_engine.nutrition import NutritionLabelGenerator
 
 CATEGORY_GENERATORS: dict[str, type[BaseLabelGenerator]] = {
     "nutrition_eu": NutritionLabelGenerator,
+    "cosmetica_eu": CosmeticLabelGenerator,
 }
 
 

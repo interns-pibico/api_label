@@ -85,6 +85,11 @@
       // Otros
       batch_number: 'Numero de lote',
       certifications: 'Certificaciones',
+      traces: 'Trazas',
+      sodium_mg: 'Sodio (mg)',
+      vitamin_c_mg: 'Vitamina C (mg)',
+      calcium_mg: 'Calcio (mg)',
+      iron_mg: 'Hierro (mg)',
     };
     return map[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   }
@@ -102,6 +107,8 @@
 
       const hasRegData = product.regulatory_data && Object.keys(product.regulatory_data).length > 0;
       container.innerHTML = `
+        ${renderScoreBadges(product)}
+        <div id="off-enriched"></div>
         ${hasRegData
           ? `<div class="product-main-grid">
               ${renderInfoCard(product)}
@@ -109,9 +116,31 @@
              </div>`
           : renderInfoCard(product)
         }
+        ${renderPackaging(product)}
+        <div id="market-price-block"></div>
         ${renderActionsCard(product)}
         ${renderLabelsCard(labels, labelsData)}
       `;
+
+      // Lightbox handler
+      container.querySelectorAll('.product-gallery-thumb').forEach(function(img) {
+        img.addEventListener('click', function() {
+          var src = this.getAttribute('data-full') || this.src;
+          var lb = document.createElement('div');
+          lb.className = 'gallery-lightbox';
+          lb.innerHTML = '<img src="' + escHtml(src) + '" alt="Foto del producto">';
+          lb.addEventListener('click', function() { lb.remove(); });
+          document.body.appendChild(lb);
+        });
+      });
+
+      // Enrich with OFF data if product has barcode (traces, additives, packaging, photos, category)
+      if (product.barcode) {
+        enrichFromOFF(product.barcode, product);
+      }
+
+      // Load market price asynchronously
+      loadMarketPrice(productId);
 
       // Render barcode SVG if product has barcode
       if (product.barcode && typeof JsBarcode !== 'undefined') {
@@ -165,6 +194,165 @@
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  function renderScoreBadges(product) {
+    var nsColors = {a:'#038141',b:'#85BB2F',c:'#FECB02',d:'#EE8100',e:'#E63E11'};
+    var novaColors = {1:'#038141',2:'#85BB2F',3:'#EE8100',4:'#E63E11'};
+    var novaLabels = {1:'Sin procesar',2:'Procesado basico',3:'Procesado',4:'Ultraprocesado'};
+    var letters = ['a','b','c','d','e'];
+
+    var hasScores = product.nutriscore || product.nova_group || product.ecoscore;
+    var hasAnalysis = product.is_vegan !== null || product.is_vegetarian !== null || product.is_palm_oil_free !== null;
+    if (!hasScores && !hasAnalysis) return '';
+
+    var html = '';
+
+    // Score badges row
+    if (hasScores) {
+      html += '<div class="score-badges">';
+
+      // NutriScore bar
+      if (product.nutriscore) {
+        html += '<div style="text-align:center"><div style="font-size:0.65rem;font-weight:600;color:var(--text-muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">NutriScore</div><div class="ns-bar">';
+        for (var i = 0; i < letters.length; i++) {
+          var l = letters[i];
+          var isActive = product.nutriscore.toLowerCase() === l;
+          html += '<div class="ns-bar-item' + (isActive ? ' active' : '') + '" style="background:' + nsColors[l] + '">' + l.toUpperCase() + '</div>';
+        }
+        html += '</div></div>';
+      }
+
+      // NOVA badge
+      if (product.nova_group) {
+        var ng = product.nova_group;
+        html += '<div style="text-align:center"><div style="font-size:0.65rem;font-weight:600;color:var(--text-muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">NOVA</div><div class="nova-badge"><div class="nova-circle" style="background:' + (novaColors[ng] || '#999') + '">' + ng + '</div><div class="nova-label">' + (novaLabels[ng] || '') + '</div></div></div>';
+      }
+
+      // Eco-Score bar
+      if (product.ecoscore) {
+        html += '<div style="text-align:center"><div style="font-size:0.65rem;font-weight:600;color:var(--text-muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.05em">Eco-Score</div><div class="eco-bar">';
+        for (var j = 0; j < letters.length; j++) {
+          var el = letters[j];
+          var isActiveE = product.ecoscore.toLowerCase() === el;
+          html += '<div class="eco-bar-item' + (isActiveE ? ' active' : '') + '" style="background:' + nsColors[el] + '">' + el.toUpperCase() + '</div>';
+        }
+        html += '</div></div>';
+      }
+
+      html += '</div>';
+    }
+
+    // Ingredient analysis pills
+    if (hasAnalysis) {
+      html += '<div class="analysis-pills">';
+      if (product.is_vegan === true) {
+        html += '<span class="analysis-pill analysis-pill-true">Vegano</span>';
+      } else if (product.is_vegan === false) {
+        html += '<span class="analysis-pill analysis-pill-false">No vegano</span>';
+      }
+      if (product.is_vegetarian === true) {
+        html += '<span class="analysis-pill analysis-pill-true">Vegetariano</span>';
+      } else if (product.is_vegetarian === false) {
+        html += '<span class="analysis-pill analysis-pill-false">No vegetariano</span>';
+      }
+      if (product.is_palm_oil_free === true) {
+        html += '<span class="analysis-pill analysis-pill-true">Sin aceite de palma</span>';
+      } else if (product.is_palm_oil_free === false) {
+        html += '<span class="analysis-pill analysis-pill-false">Contiene aceite de palma</span>';
+      }
+      html += '</div>';
+    }
+
+    return html;
+  }
+
+  function renderTracesAdditives(product) {
+    var regData = product.regulatory_data || {};
+    var allergens = regData.allergens || null;
+    var traces = regData.traces || null;
+    var additives = product.additives || (regData.additives || null);
+    var addCount = product.additives_count;
+    if (addCount == null && additives) {
+      addCount = additives.split(',').length;
+    }
+
+    if (!allergens && !traces && additives == null) return '';
+
+    var html = '<div class="card mb-4"><div class="card-title">Alergenos, trazas y aditivos</div>';
+
+    if (allergens) {
+      html += '<div class="trace-row"><span class="trace-icon">&#9888;&#65039;</span><span class="trace-label">Alergenos:</span> <span class="trace-value">' + escHtml(allergens) + '</span></div>';
+    }
+
+    if (traces) {
+      html += '<div class="trace-row"><span class="trace-icon">&#9888;</span><span class="trace-label">Trazas:</span> <span class="trace-value">puede contener ' + escHtml(traces) + '</span></div>';
+    }
+
+    if (additives != null) {
+      var addLevel, addColor, addText;
+      var count = addCount || 0;
+      if (count === 0) {
+        addColor = '#16a34a'; addText = 'Sin aditivos';
+      } else if (count <= 3) {
+        addColor = '#16a34a'; addText = 'Pocos aditivos';
+      } else if (count <= 7) {
+        addColor = '#ca8a04'; addText = 'Aditivos moderados';
+      } else {
+        addColor = '#dc2626'; addText = 'Muchos aditivos';
+      }
+      html += '<div class="trace-row"><span class="trace-icon" style="font-size:0.9rem">&#129514;</span><span class="trace-label">Aditivos';
+      if (count > 0) html += ' (' + count + ')';
+      html += ':</span> <span class="additive-badge" style="background:' + addColor + '">' + escHtml(addText) + '</span>';
+      if (additives && count > 0) {
+        html += '<div class="trace-detail">' + escHtml(additives) + '</div>';
+      }
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderCategoryComparison(product) {
+    var cat = product.compared_to_category || product.categories || null;
+    var novaLabelsMap = {1:'Sin procesar',2:'Procesado basico',3:'Procesado',4:'Ultraprocesado'};
+    if (!cat && !product.nova_group) return '';
+
+    var html = '<div class="card mb-4"><div class="card-title">Categoria y procesamiento</div>';
+    html += '<div class="cat-compare-grid">';
+    if (cat) {
+      var displayCat = product.compared_to_category || cat;
+      html += '<div class="cat-compare-item"><span class="detail-label">Categoria</span><span class="detail-value">' + escHtml(displayCat) + '</span></div>';
+    }
+    if (product.nova_group) {
+      html += '<div class="cat-compare-item"><span class="detail-label">Procesamiento NOVA</span><span class="detail-value">' + product.nova_group + ' - ' + (novaLabelsMap[product.nova_group] || '') + '</span></div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderPhotoGallery(product) {
+    var photos = [];
+    var seen = new Set();
+    if (product.image_url) { seen.add(product.image_url); photos.push({thumb: product.image_url, full: product.image_url, label: 'Producto'}); }
+    if (product.image_nutrition_url && !seen.has(product.image_nutrition_url)) { seen.add(product.image_nutrition_url); photos.push({thumb: product.image_nutrition_url, full: product.image_nutrition_url, label: 'Tabla nutricional'}); }
+    if (product.image_ingredients_url && !seen.has(product.image_ingredients_url)) { seen.add(product.image_ingredients_url); photos.push({thumb: product.image_ingredients_url, full: product.image_ingredients_url, label: 'Ingredientes'}); }
+    if (photos.length === 0) return '';
+
+    var html = '<div class="card mb-4"><div class="card-title">Fotos del producto</div><div class="product-gallery">';
+    for (var i = 0; i < photos.length; i++) {
+      var p = photos[i];
+      html += '<div style="text-align:center"><img class="product-gallery-thumb" src="' + escHtml(p.thumb) + '" alt="' + escHtml(p.label) + '" data-full="' + escHtml(p.full) + '" onerror="this.parentElement.style.display=\'none\'"><div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px">' + escHtml(p.label) + '</div></div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderPackaging(product) {
+    var pkg = product.packaging || null;
+    if (!pkg) return '';
+    return '<div class="packaging-row"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg><span style="font-size:0.82rem"><strong>Envase:</strong> ' + escHtml(pkg) + '</span></div>';
   }
 
   function renderInfoCard(product) {
@@ -285,6 +473,145 @@
     }
   }
 
+  function fmtEur(v) {
+    if (v == null) return '—';
+    return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(v);
+  }
+
+  function fuenteLabel(fuente) {
+    const map = { mercadona:'Mercadona', carrefour:'Carrefour', alimerka:'Alimerka', masymas:'Masymas', aldi:'Aldi', alcampo:'Alcampo', familia:'Familia', gadis:'Gadis', gadisline:'Gadis' };
+    const lower = (fuente || '').toLowerCase();
+    if (lower.startsWith('folleto:')) return 'Folleto ' + (map[lower.slice(8)] || lower.slice(8));
+    for (const [k, n] of Object.entries(map)) { if (lower.includes(k)) return n; }
+    return fuente || '';
+  }
+
+  async function loadMarketPrice(productId) {
+    const block = document.getElementById('market-price-block');
+    if (!block) return;
+    try {
+      const data = await api.get(`/api/v1/products/${productId}/market-price`);
+      if (!data.found) return;
+
+      const nsColors = {a:'#038141',b:'#85BB2F',c:'#FECB02',d:'#EE8100',e:'#E63E11'};
+      let offersHtml = '';
+      for (const o of (data.offers || [])) {
+        const nsBg = nsColors[o.nutriscore] || '#999';
+        const nsHtml = o.nutriscore
+          ? `<span style="display:inline-flex;width:20px;height:20px;border-radius:4px;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:#fff;background:${nsBg}">${o.nutriscore.toUpperCase()}</span>`
+          : '';
+        const discHtml = o.descuento_porcentaje ? `<span style="color:var(--accent);font-size:0.75rem">-${Math.round(o.descuento_porcentaje)}%</span>` : '';
+        const linkHtml = o.producto_url ? `<a href="${escHtml(o.producto_url)}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--primary)">Ver</a>` : '';
+        offersHtml += `<tr>
+          <td style="font-size:0.85rem">${escHtml(fuenteLabel(o.fuente))} ${nsHtml}</td>
+          <td style="font-weight:600">${fmtEur(o.precio_oferta)}</td>
+          <td>${discHtml}</td>
+          <td>${linkHtml}</td>
+        </tr>`;
+      }
+
+      block.innerHTML = `
+        <div class="card mb-4">
+          <div class="card-title" style="display:flex;align-items:center;gap:0.5rem">
+            <svg width="18" height="18" fill="none" stroke="var(--primary)" stroke-width="2" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="var(--primary)"/></svg>
+            Precio de mercado
+          </div>
+          <div style="display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:1rem">
+            <div style="text-align:center">
+              <div style="font-size:1.6rem;font-weight:700;color:var(--primary)">${fmtEur(data.avg_price)}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted)">Precio medio</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:1.1rem;font-weight:600;color:#16a34a">${fmtEur(data.min_price)}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted)">Mejor precio</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:1.1rem;font-weight:600;color:var(--text-muted)">${fmtEur(data.max_price)}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted)">Precio máximo</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:1.1rem;font-weight:600">${data.supermarkets}</div>
+              <div style="font-size:0.75rem;color:var(--text-muted)">Supermercados</div>
+            </div>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
+              <thead><tr style="border-bottom:2px solid var(--border)">
+                <th style="text-align:left;padding:0.4rem 0.5rem">Supermercado</th>
+                <th style="text-align:left;padding:0.4rem 0.5rem">Precio</th>
+                <th style="text-align:left;padding:0.4rem 0.5rem">Dto.</th>
+                <th style="padding:0.4rem 0.5rem"></th>
+              </tr></thead>
+              <tbody>${offersHtml}</tbody>
+            </table>
+          </div>
+          <div style="margin-top:0.75rem;text-align:center">
+            <a href="https://raquel.pibico.es/offer/comparar" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Ver en Ofertas PiBiCo →</a>
+          </div>
+        </div>`;
+    } catch(e) { /* fail silently */ }
+  }
+
+  async function enrichFromOFF(barcode, product) {
+    try {
+      var resp = await fetch(ROOT + '/api/v1/off/barcode-search/' + encodeURIComponent(barcode), { credentials: 'include' });
+      if (!resp.ok) return;
+      var off = await resp.json();
+
+      // Update sections that depend on OFF-only data
+      var needsRerender = false;
+
+      // Traces & additives
+      if (off.traces || off.additives) {
+        product.traces = off.traces;
+        product.additives = off.additives;
+        product.additives_count = off.additives_count;
+        if (off.traces && product.regulatory_data) product.regulatory_data.traces = off.traces;
+        needsRerender = true;
+      }
+
+      // Category comparison
+      if (off.compared_to_category) {
+        product.compared_to_category = off.compared_to_category;
+        needsRerender = true;
+      }
+
+      // Extra images (only if not already on product)
+      if (off.image_nutrition_url && !product.image_nutrition_url) {
+        product.image_nutrition_url = off.image_nutrition_url;
+        needsRerender = true;
+      }
+      if (off.image_ingredients_url && !product.image_ingredients_url) {
+        product.image_ingredients_url = off.image_ingredients_url;
+        needsRerender = true;
+      }
+
+      // Packaging
+      if (off.packaging) {
+        product.packaging = off.packaging;
+        needsRerender = true;
+      }
+
+      // Render enriched sections into the placeholder (traces, category, photos, packaging)
+      var wrapper = document.getElementById('off-enriched');
+      if (wrapper) {
+        wrapper.innerHTML = renderTracesAdditives(product) + renderCategoryComparison(product) + renderPhotoGallery(product) + renderPackaging(product);
+
+        // Bind lightbox to gallery thumbnails
+        wrapper.querySelectorAll('.product-gallery-thumb').forEach(function(img) {
+          img.addEventListener('click', function() {
+            var src = this.getAttribute('data-full') || this.src;
+            var lb = document.createElement('div');
+            lb.className = 'gallery-lightbox';
+            lb.innerHTML = '<img src="' + escHtml(src) + '" alt="Foto del producto">';
+            lb.addEventListener('click', function() { lb.remove(); });
+            document.body.appendChild(lb);
+          });
+        });
+      }
+    } catch(e) { /* fail silently — OFF may be slow or down */ }
+  }
+
   loadProduct();
 })();
 </script>
@@ -370,6 +697,69 @@
     flex: 1;
     font-size: 0.82rem;
     font-weight: 400;
+  }
+
+  /* Traces, additives, packaging */
+  .trace-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    padding: 0.35rem 0;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+  }
+  .trace-icon { flex-shrink: 0; font-size: 0.85rem; }
+  .trace-label { font-weight: 600; color: var(--text-muted); white-space: nowrap; }
+  .trace-value { color: var(--text); }
+  .trace-detail { width: 100%; font-size: 0.78rem; color: var(--text-muted); padding-left: 1.3rem; margin-top: 0.15rem; }
+  .additive-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  /* Category comparison */
+  .cat-compare-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  .cat-compare-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  /* Photo gallery */
+  .product-gallery { display: flex; gap: 8px; margin-bottom: 0.25rem; flex-wrap: wrap; }
+  .product-gallery-thumb {
+    width: 80px; height: 80px; object-fit: cover;
+    border-radius: 8px; border: 1px solid var(--border);
+    cursor: pointer; transition: transform 0.15s;
+  }
+  .product-gallery-thumb:hover { transform: scale(1.05); }
+  .gallery-lightbox {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 500;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .gallery-lightbox img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+
+  /* Packaging row */
+  .packaging-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
   }
 
   /* Barcode at bottom of info card */

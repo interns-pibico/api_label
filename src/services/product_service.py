@@ -83,6 +83,14 @@ async def create_product(data: ProductCreate, user: User, db: AsyncSession) -> P
         description=data.description,
         regulatory_data=data.regulatory_data,
         image_url=data.image_url,
+        image_nutrition_url=data.image_nutrition_url,
+        image_ingredients_url=data.image_ingredients_url,
+        nutriscore=data.nutriscore,
+        nova_group=data.nova_group,
+        ecoscore=data.ecoscore,
+        is_vegan=data.is_vegan,
+        is_vegetarian=data.is_vegetarian,
+        is_palm_oil_free=data.is_palm_oil_free,
         is_active=True,
     )
     created = await repo.create(product)

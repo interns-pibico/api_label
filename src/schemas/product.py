@@ -12,6 +12,14 @@ class ProductCreate(BaseModel):
     description: str | None = None
     regulatory_data: dict | None = None
     image_url: str | None = None
+    image_nutrition_url: str | None = None
+    image_ingredients_url: str | None = None
+    nutriscore: str | None = None
+    nova_group: int | None = None
+    ecoscore: str | None = None
+    is_vegan: bool | None = None
+    is_vegetarian: bool | None = None
+    is_palm_oil_free: bool | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -22,6 +30,14 @@ class ProductUpdate(BaseModel):
     description: str | None = None
     regulatory_data: dict | None = None
     image_url: str | None = None
+    image_nutrition_url: str | None = None
+    image_ingredients_url: str | None = None
+    nutriscore: str | None = None
+    nova_group: int | None = None
+    ecoscore: str | None = None
+    is_vegan: bool | None = None
+    is_vegetarian: bool | None = None
+    is_palm_oil_free: bool | None = None
     is_active: bool | None = None
 
 
@@ -46,6 +62,14 @@ class ProductResponse(BaseModel):
     description: str | None
     regulatory_data: dict | None
     image_url: str | None
+    image_nutrition_url: str | None = None
+    image_ingredients_url: str | None = None
+    nutriscore: str | None = None
+    nova_group: int | None = None
+    ecoscore: str | None = None
+    is_vegan: bool | None = None
+    is_vegetarian: bool | None = None
+    is_palm_oil_free: bool | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime

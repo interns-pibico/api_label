@@ -30,8 +30,34 @@ def _product_summary(p: OFFProduct) -> dict:
 
 
 def _product_full(p: OFFProduct) -> dict:
-    """Return full product data including nutrition."""
-    return p.to_dict()
+    """Return full product data including nutrition.
+
+    Structure: top-level basic fields (name, brand, image_url, barcode)
+    + regulatory_data dict with all nutrition/label fields for form auto-fill.
+    """
+    return {
+        "name": p.name,
+        "brand": p.brand,
+        "image_url": p.image_url,
+        "barcode": p.barcode,
+        "nutriscore": p.nutriscore,
+        "nova_group": p.nova_group,
+        "ecoscore": p.ecoscore,
+        "is_vegan": p.is_vegan,
+        "is_vegetarian": p.is_vegetarian,
+        "is_palm_oil_free": p.is_palm_oil_free,
+        "categories": p.categories,
+        "labels": p.labels,
+        "traces": p.traces,
+        "additives": p.additives,
+        "additives_count": p.additives_count,
+        "compared_to_category": p.compared_to_category,
+        "image_front_large_url": p.image_front_large_url,
+        "image_nutrition_url": p.image_nutrition_url,
+        "image_ingredients_url": p.image_ingredients_url,
+        "packaging": p.packaging,
+        "regulatory_data": p.to_regulatory_data(),
+    }
 
 
 @router.get("/search")

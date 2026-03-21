@@ -1,5 +1,5 @@
 /* =============================================================
-   api_label — style.css v24
+   api_label — style.css v28
    Mobile-first responsive stylesheet
    Brand: Steel Blue #4682B4, Red Brick #CB4154
    Fonts: Figtree (body), Poppins (headings)
@@ -3180,3 +3180,27 @@ tbody td {
 .search-dropdown-item:hover {
     background: #f8f9fa;
 }
+
+/* ── Score badges (NutriScore / NOVA / Eco-Score) ──────────── */
+.score-badges { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 1rem; align-items: flex-start; }
+
+/* NutriScore horizontal bar */
+.ns-bar { display: flex; border-radius: 6px; overflow: hidden; }
+.ns-bar-item { padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: #fff; opacity: 0.35; transition: all 0.15s; min-width: 24px; text-align: center; }
+.ns-bar-item.active { opacity: 1; transform: scaleY(1.15); font-size: 0.85rem; padding: 6px 10px; }
+
+/* NOVA circle */
+.nova-badge { display: flex; align-items: center; gap: 6px; }
+.nova-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: #fff; }
+.nova-label { font-size: 0.7rem; color: var(--text-muted); max-width: 80px; line-height: 1.2; }
+
+/* Eco-Score bar (same as NS but green theme) */
+.eco-bar { display: flex; border-radius: 6px; overflow: hidden; }
+.eco-bar-item { padding: 4px 8px; font-size: 0.7rem; font-weight: 700; color: #fff; opacity: 0.35; transition: all 0.15s; min-width: 24px; text-align: center; }
+.eco-bar-item.active { opacity: 1; transform: scaleY(1.15); font-size: 0.85rem; padding: 6px 10px; }
+
+/* Ingredient analysis pills */
+.analysis-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+.analysis-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; }
+.analysis-pill-true { background: #dcfce7; color: #166534; }
+.analysis-pill-false { background: #fef2f2; color: #991b1b; }

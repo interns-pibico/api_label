@@ -1,11 +1,14 @@
 """Product endpoints."""
 
+import logging
 import math
 import uuid
 from typing import List, Optional
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query
 
+from src.core.config import settings
 from src.core.dependencies import CurrentActiveUser, DbSession
 from src.schemas.category import SectorInfo
 from src.schemas.pagination import PaginatedResponse
@@ -13,6 +16,8 @@ from src.schemas.product import ProductCreate, ProductPatch, ProductResponse, Pr
 from src.services import category_service, product_service
 from src.services.integrations import openfoodfacts as off_client
 from src.services.integrations.open_beauty_facts import fetch_by_barcode as obf_fetch
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -102,6 +107,73 @@ async def lookup_cosmetic_product(
         "sector": "cosmetica",
         "fuente": "openbeautyfacts",
         "datos": datos,
+    }
+
+
+@router.get("/{product_id}/market-price")
+async def get_market_price(
+    product_id: uuid.UUID,
+    db: DbSession,
+    current_user: CurrentActiveUser,
+):
+    """Get market price data for a product from api_offer.
+
+    If the product has a barcode, searches by barcode.
+    Otherwise, searches by product name.
+    """
+    product = await product_service.get_product(product_id, current_user, db)
+
+    offer_api = settings.OFFER_API_URL
+    offers = []
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            if product.barcode:
+                resp = await client.get(f"{offer_api}/api/v1/offers/barcode/{product.barcode}")
+                if resp.status_code == 200:
+                    offers = resp.json()
+            if not offers:
+                resp = await client.get(
+                    f"{offer_api}/api/v1/offers/compare",
+                    params={"q": product.name, "limit": 10},
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    offers = data.get("results", [])
+    except Exception as exc:
+        logger.warning("Market price lookup failed: %s", exc)
+        return {"found": False, "reason": "api_offer no disponible"}
+
+    if not offers:
+        return {"found": False, "reason": "Sin ofertas encontradas"}
+
+    prices = [o["precio_oferta"] for o in offers if o.get("precio_oferta") is not None]
+    if not prices:
+        return {"found": False, "reason": "Sin precios disponibles"}
+
+    supermarkets = set()
+    for o in offers:
+        f = o.get("fuente", "")
+        supermarkets.add(f)
+
+    return {
+        "found": True,
+        "avg_price": round(sum(prices) / len(prices), 2),
+        "min_price": round(min(prices), 2),
+        "max_price": round(max(prices), 2),
+        "supermarkets": len(supermarkets),
+        "offers": [
+            {
+                "producto_nombre": o.get("producto_nombre"),
+                "precio_oferta": o.get("precio_oferta"),
+                "precio_original": o.get("precio_original"),
+                "descuento_porcentaje": o.get("descuento_porcentaje"),
+                "fuente": o.get("fuente"),
+                "producto_url": o.get("producto_url"),
+                "nutriscore": o.get("nutriscore"),
+            }
+            for o in offers[:10]
+        ],
     }
 
 

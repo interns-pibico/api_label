@@ -7,6 +7,13 @@
   <h1>Mis Etiquetas</h1>
 </div>
 
+<!-- Sector filter tabs -->
+<div class="sector-tabs" id="sector-tabs">
+  <button class="sector-tab active" data-sector="">Todas</button>
+  <button class="sector-tab" data-sector="alimentacion">🍎 Alimentación</button>
+  <button class="sector-tab" data-sector="cosmetica">💄 Cosmética</button>
+</div>
+
 <div id="labels-content">
   <div class="loading-overlay">
     <div class="spinner"></div>
@@ -21,9 +28,42 @@
   if (!Auth.requireAuth()) return;
 
   const container = document.getElementById('labels-content');
+  const sectorTabs = document.getElementById('sector-tabs');
+  let allLabels = [];
+  let currentSector = '';
+
+  // Sector tab click
+  sectorTabs.addEventListener('click', (e) => {
+    const tab = e.target.closest('.sector-tab');
+    if (!tab) return;
+    sectorTabs.querySelectorAll('.sector-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentSector = tab.dataset.sector || '';
+    renderFiltered();
+  });
+
+  function renderFiltered() {
+    const filtered = currentSector
+      ? allLabels.filter(l => l.product_sector === currentSector)
+      : allLabels;
+    if (filtered.length === 0) {
+      renderEmpty();
+    } else {
+      renderLabels(filtered);
+    }
+  }
 
   async function loadAllLabels() {
     try {
+      // Load categories to map category_id → sector
+      const catMap = {};
+      try {
+        const cats = await api.get('/api/v1/categories');
+        if (Array.isArray(cats)) {
+          cats.forEach(c => { catMap[c.id] = c.sector || 'alimentacion'; });
+        }
+      } catch {}
+
       // Fetch all products
       const prodsData = await api.get('/api/v1/products?page=1&page_size=100');
       if (!prodsData || !prodsData.items || prodsData.items.length === 0) {
@@ -32,7 +72,7 @@
       }
 
       // For each product, fetch its labels
-      const allLabels = [];
+      allLabels = [];
       await Promise.all(prodsData.items.map(async (prod) => {
         try {
           const labelsData = await api.get(`/api/v1/products/${prod.id}/labels?page=1&page_size=50`);
@@ -43,6 +83,7 @@
                 product_name: prod.name,
                 product_brand: prod.brand || '',
                 product_id: prod.id,
+                product_sector: catMap[prod.category_id] || 'alimentacion',
               });
             });
           }
@@ -183,6 +224,34 @@
   .badge-accent {
     background: var(--accent-light);
     color: var(--accent);
+  }
+
+  /* Sector tabs */
+  .sector-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border);
+    padding-bottom: 0;
+  }
+  .sector-tab {
+    padding: 8px 16px;
+    border: none;
+    background: none;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .sector-tab:hover { color: var(--text); }
+  .sector-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
   }
 </style>
 {% endblock %}

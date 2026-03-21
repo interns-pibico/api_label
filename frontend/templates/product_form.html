@@ -57,6 +57,16 @@
     </div>
   </div>
 
+  {# Hidden score fields (populated from OFF barcode lookup) #}
+  <input type="hidden" id="off_nutriscore" name="off_nutriscore">
+  <input type="hidden" id="off_nova_group" name="off_nova_group">
+  <input type="hidden" id="off_ecoscore" name="off_ecoscore">
+  <input type="hidden" id="off_is_vegan" name="off_is_vegan">
+  <input type="hidden" id="off_is_vegetarian" name="off_is_vegetarian">
+  <input type="hidden" id="off_is_palm_oil_free" name="off_is_palm_oil_free">
+  <input type="hidden" id="off_image_nutrition_url" name="off_image_nutrition_url">
+  <input type="hidden" id="off_image_ingredients_url" name="off_image_ingredients_url">
+
   {# Dynamic regulatory fields (loaded based on category) #}
   <div id="regulatory-card" class="card mb-4 hidden">
     <div class="card-title" id="regulatory-title">Datos reglamentarios</div>
@@ -356,6 +366,21 @@
     barcodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); triggerOBF(); } });
   }
 
+  // Auto-trigger OFF lookup on barcode blur/enter for food sector
+  if (!isCosmetic) {
+    const barcodeInput = document.getElementById('barcode');
+    let lastFoodLookup = '';
+    const triggerFoodLookup = () => {
+      const val = barcodeInput.value.trim();
+      if (val && val !== lastFoodLookup && val.length >= 8) {
+        lastFoodLookup = val;
+        onScanDetected(val);
+      }
+    };
+    barcodeInput.addEventListener('blur', triggerFoodLookup);
+    barcodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); triggerFoodLookup(); } });
+  }
+
   // ── Hide/show cosmetic section cards ────────────────────
   function showCosmeticSections(show) {
     cosmIngCard && cosmIngCard.classList.toggle('hidden', !show);
@@ -596,6 +621,16 @@
     if (!name) { errMsg.textContent = 'El nombre es obligatorio.'; errMsg.classList.remove('hidden'); return; }
     if (!category) { errMsg.textContent = 'Selecciona una categoria.'; errMsg.classList.remove('hidden'); return; }
 
+    // Collect score fields from hidden inputs
+    var nsVal = document.getElementById('off_nutriscore').value.trim();
+    var novaVal = document.getElementById('off_nova_group').value.trim();
+    var ecoVal = document.getElementById('off_ecoscore').value.trim();
+    var veganVal = document.getElementById('off_is_vegan').value.trim();
+    var vegVal = document.getElementById('off_is_vegetarian').value.trim();
+    var palmVal = document.getElementById('off_is_palm_oil_free').value.trim();
+    var imgNutrVal = document.getElementById('off_image_nutrition_url').value.trim();
+    var imgIngrVal = document.getElementById('off_image_ingredients_url').value.trim();
+
     const payload = {
       name,
       brand:           document.getElementById('brand').value.trim() || null,
@@ -603,7 +638,15 @@
       category_id:     category,
       description:     document.getElementById('description').value.trim() || null,
       image_url:       document.getElementById('image_url').value.trim() || null,
+      image_nutrition_url: imgNutrVal || null,
+      image_ingredients_url: imgIngrVal || null,
       regulatory_data: collectRegulatoryData(),
+      nutriscore:      nsVal || null,
+      nova_group:      novaVal ? parseInt(novaVal) : null,
+      ecoscore:        ecoVal || null,
+      is_vegan:        veganVal === 'true' ? true : veganVal === 'false' ? false : null,
+      is_vegetarian:   vegVal === 'true' ? true : vegVal === 'false' ? false : null,
+      is_palm_oil_free: palmVal === 'true' ? true : palmVal === 'false' ? false : null,
     };
 
     setLoading(true);
@@ -641,15 +684,22 @@
 
   // OFF field keys → form data-reg-key mapping
   const OFF_KEY_MAP = {
-    fat_g:            'fat',
-    saturated_fat_g:  'saturated_fat',
-    carbohydrates_g:  'carbohydrates',
-    sugars_g:         'sugars',
-    protein_g:        'protein',
-    salt_g:           'salt',
-    fiber_g:          'fiber',
-    energy_kj:        'energy_kj',
-    energy_kcal:      'energy_kcal',
+    fat_g:              'fat',
+    saturated_fat_g:    'saturated_fat',
+    carbohydrates_g:    'carbohydrates',
+    sugars_g:           'sugars',
+    protein_g:          'protein',
+    salt_g:             'salt',
+    fiber_g:            'fiber',
+    energy_kj:          'energy_kj',
+    energy_kcal:        'energy_kcal',
+    serving_size_g:     'serving_size_g',
+    net_weight:         'net_weight',
+    manufacturer:       'manufacturer',
+    country_of_origin:  'country_of_origin',
+    storage_conditions: 'storage_conditions',
+    ingredients:        'ingredients',
+    allergens:          'allergens',
   };
 
   async function onScanDetected(value) {
@@ -681,6 +731,16 @@
       if (data.name)      document.getElementById('name').value      = data.name;
       if (data.brand)     document.getElementById('brand').value     = data.brand;
       if (data.image_url) document.getElementById('image_url').value = data.image_url;
+
+      // Store score fields in hidden inputs
+      if (data.nutriscore != null) document.getElementById('off_nutriscore').value = data.nutriscore;
+      if (data.nova_group != null) document.getElementById('off_nova_group').value = data.nova_group;
+      if (data.ecoscore != null) document.getElementById('off_ecoscore').value = data.ecoscore;
+      if (data.is_vegan != null) document.getElementById('off_is_vegan').value = data.is_vegan;
+      if (data.is_vegetarian != null) document.getElementById('off_is_vegetarian').value = data.is_vegetarian;
+      if (data.is_palm_oil_free != null) document.getElementById('off_is_palm_oil_free').value = data.is_palm_oil_free;
+      if (data.image_nutrition_url) document.getElementById('off_image_nutrition_url').value = data.image_nutrition_url;
+      if (data.image_ingredients_url) document.getElementById('off_image_ingredients_url').value = data.image_ingredients_url;
 
       // Fill regulatory fields — wait a tick in case category change is still rendering
       const fillReg = () => {
