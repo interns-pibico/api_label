@@ -230,14 +230,15 @@ async def seed(database_url: str) -> None:
 
         sql = """
             INSERT INTO regulatory_categories
-                (id, code, name, description, schema_definition, regulations_reference, is_active, created_at, updated_at)
+                (id, code, name, description, schema_definition, regulations_reference, sector, is_active, created_at, updated_at)
             VALUES
-                ($1::uuid, $2, $3, $4, $5::jsonb, $6, TRUE, NOW(), NOW())
+                ($1::uuid, $2, $3, $4, $5::jsonb, $6, $7, TRUE, NOW(), NOW())
             ON CONFLICT (code) DO UPDATE SET
                 name                 = EXCLUDED.name,
                 description          = EXCLUDED.description,
                 schema_definition    = EXCLUDED.schema_definition,
                 regulations_reference = EXCLUDED.regulations_reference,
+                sector               = EXCLUDED.sector,
                 is_active            = EXCLUDED.is_active,
                 updated_at           = NOW()
             RETURNING id, code, name
@@ -255,6 +256,7 @@ async def seed(database_url: str) -> None:
             ),
             schema_json,
             "Reglamento (UE) nº 1169/2011 — Anexo XV (Declaración nutricional)",
+            "alimentacion",
         )
 
         print(f"OK: category upserted successfully.")

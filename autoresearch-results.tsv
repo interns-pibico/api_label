@@ -1,0 +1,4 @@
+iteration	timestamp	action	metric_before	metric_after	result	notes
+0	2026-03-24T00:00:00	baseline	42	42	baseline	20 F401 (unused imports), 13 E712 (bool comparisons), 4 F841 (unused vars), 2 E402 (import order), 2 F601 (repeated dict keys), 1 E711 (None comparison)
+1	2026-03-24T00:01:00	ruff --fix --unsafe-fixes	42	2	keep	Auto-fixed 40 errors: F401, E712, E711, F841, F601. 19 files changed.
+2	2026-03-24T00:02:00	move imports to top	2	0	keep	Moved User/ApiToken imports to top of dependencies.py. E402 resolved.
