@@ -1,4 +1,3 @@
-import uuid
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,11 +20,11 @@ class UserRepository(BaseRepository[User]):
 
     async def get_active_users(self, offset: int = 0, limit: int = 20) -> tuple[list[User], int]:
         count_result = await self.db.execute(
-            select(func.count()).select_from(User).where(User.is_active == True)
+            select(func.count()).select_from(User).where(User.is_active)
         )
         total = count_result.scalar_one()
         result = await self.db.execute(
-            select(User).where(User.is_active == True).offset(offset).limit(limit)
+            select(User).where(User.is_active).offset(offset).limit(limit)
         )
         items = list(result.scalars().all())
         return items, total

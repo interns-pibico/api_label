@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.exceptions import BadRequestException, NotFoundException
 from src.db.repositories.user_repository import UserRepository
 from src.models.users import User
-from src.schemas.user import SubscriptionPlan, SubscriptionUpdate
+from src.schemas.user import SubscriptionUpdate
 from src.services.audit_service import AuditService
 
 

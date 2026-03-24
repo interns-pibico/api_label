@@ -118,7 +118,7 @@ def _render_pdf(html_content: str, label_data: dict, output_path: str) -> None:
         spaceBefore=6,
         spaceAfter=2,
     )
-    normal_style = styles["Normal"]
+    styles["Normal"]
     small_style = ParagraphStyle(
         "Small",
         parent=styles["Normal"],

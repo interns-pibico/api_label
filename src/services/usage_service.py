@@ -5,11 +5,9 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.exceptions import ForbiddenException, NotFoundException
 from src.db.repositories.usage_log_repository import UsageLogRepository
 from src.models.usage_logs import UsageLog
-from src.models.users import User
-from src.schemas.usage import UsageLogResponse, UsageStatsResponse
+from src.schemas.usage import UsageStatsResponse
 
 # Rate limit daily quotas per tier (requests/day)
 TIER_DAILY_LIMITS: dict[str, int] = {

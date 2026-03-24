@@ -20,7 +20,7 @@ class ProductRepository(BaseRepository[Product]):
             select(Product)
             .where(
                 Product.user_id == user_id,
-                Product.is_active == True,
+                Product.is_active,
                 Product.name.ilike(f"%{query}%"),
             )
             .order_by(Product.created_at.desc())
@@ -30,7 +30,7 @@ class ProductRepository(BaseRepository[Product]):
 
     async def get_by_barcode(self, barcode: str) -> Product | None:
         result = await self.db.execute(
-            select(Product).where(Product.barcode == barcode, Product.is_active == True)
+            select(Product).where(Product.barcode == barcode, Product.is_active)
         )
         return result.scalar_one_or_none()
 
@@ -40,12 +40,12 @@ class ProductRepository(BaseRepository[Product]):
         count_result = await self.db.execute(
             select(func.count())
             .select_from(Product)
-            .where(Product.user_id == user_id, Product.is_active == True)
+            .where(Product.user_id == user_id, Product.is_active)
         )
         total = count_result.scalar_one()
         result = await self.db.execute(
             select(Product)
-            .where(Product.user_id == user_id, Product.is_active == True)
+            .where(Product.user_id == user_id, Product.is_active)
             .order_by(Product.created_at.desc())
             .offset(offset)
             .limit(limit)
@@ -59,12 +59,12 @@ class ProductRepository(BaseRepository[Product]):
         count_result = await self.db.execute(
             select(func.count())
             .select_from(Product)
-            .where(Product.category_id == category_id, Product.is_active == True)
+            .where(Product.category_id == category_id, Product.is_active)
         )
         total = count_result.scalar_one()
         result = await self.db.execute(
             select(Product)
-            .where(Product.category_id == category_id, Product.is_active == True)
+            .where(Product.category_id == category_id, Product.is_active)
             .order_by(Product.created_at.desc())
             .offset(offset)
             .limit(limit)
@@ -87,7 +87,7 @@ class ProductRepository(BaseRepository[Product]):
 
         # Sector filter requires JOIN with regulatory_categories
         base_conditions = [
-            Product.is_active == True,
+            Product.is_active,
             RegulatoryCategory.sector == sector,
         ]
         if not is_admin:

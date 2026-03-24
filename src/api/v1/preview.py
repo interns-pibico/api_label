@@ -138,10 +138,8 @@ async def preview_label(request: Request, data: PreviewRequest, response: Respon
     """
     # --- Resolve session ID from cookie or generate new one ---
     session_id = request.cookies.get("lbl_sid")
-    is_new_session = False
     if not session_id:
         session_id = str(uuid.uuid4())
-        is_new_session = True
 
     # --- Get client IP ---
     client_ip = _get_client_ip(request)

@@ -200,9 +200,8 @@ _PACKAGING_TRANSLATIONS: dict[str, str] = {
     # French → Spanish
     "plastique": "plástico", "verre": "vidrio", "carton": "cartón",
     "métal": "metal", "papier": "papel", "bois": "madera",
-    "boîte": "caja", "bouteille": "botella", "sachet": "bolsa",
-    "pot": "bote", "barquette": "bandeja", "couvercle": "tapa",
-    "bouchon": "tapón", "opercule": "precinto", "film": "film",
+    "boîte": "caja", "bouteille": "botella", "sachet": "bolsa", "barquette": "bandeja", "couvercle": "tapa",
+    "bouchon": "tapón", "opercule": "precinto",
     "à recycler": "reciclable", "à jeter": "no reciclable",
     "blanc": "blanco", "opaque": "opaco", "transparent": "transparente",
     "non corrugated": "liso", "drinks": "",

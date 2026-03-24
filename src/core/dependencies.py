@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 

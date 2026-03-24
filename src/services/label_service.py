@@ -9,7 +9,7 @@ from src.core.exceptions import BadRequestException, ForbiddenException, NotFoun
 from src.db.repositories.category_repository import CategoryRepository
 from src.db.repositories.label_repository import LabelRepository
 from src.db.repositories.product_repository import ProductRepository
-from src.models.labels import Label, LabelFormat, LabelLanguage
+from src.models.labels import Label, LabelFormat
 from src.models.users import User
 from src.schemas.label import LabelGenerateRequest
 from src.services.label_engine.registry import get_generator

@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.exceptions import ConflictException, ForbiddenException, NotFoundException
+from src.core.exceptions import ForbiddenException, NotFoundException
 from src.db.repositories.api_token_repository import ApiTokenRepository
-from src.models.api_tokens import ApiToken, RateLimitTier
+from src.models.api_tokens import ApiToken
 from src.models.users import User
 from src.schemas.api_token import ApiTokenCreate, ApiTokenCreatedResponse, ApiTokenUpdate
 

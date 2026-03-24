@@ -1,4 +1,4 @@
-from sqlalchemy import select, func, outerjoin
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.repositories.base import BaseRepository
@@ -19,7 +19,7 @@ class CategoryRepository(BaseRepository[RegulatoryCategory]):
     async def get_active(
         self, offset: int = 0, limit: int = 20, sector: str | None = None
     ) -> tuple[list[RegulatoryCategory], int]:
-        base_where = [RegulatoryCategory.is_active == True]
+        base_where = [RegulatoryCategory.is_active]
         if sector is not None:
             base_where.append(RegulatoryCategory.sector == sector)
 
@@ -47,8 +47,8 @@ class CategoryRepository(BaseRepository[RegulatoryCategory]):
                 func.count(Product.id).label("cnt"),
             )
             .join(Product, Product.category_id == RegulatoryCategory.id, isouter=True)
-            .where(RegulatoryCategory.is_active == True)
-            .where((Product.is_active == True) | (Product.id == None))
+            .where(RegulatoryCategory.is_active)
+            .where((Product.is_active) | (Product.id is None))
             .group_by(RegulatoryCategory.sector)
             .order_by(RegulatoryCategory.sector)
         )

@@ -14,7 +14,7 @@ class ApiTokenRepository(BaseRepository[ApiToken]):
 
     async def get_by_hash(self, token_hash: str) -> ApiToken | None:
         result = await self.db.execute(
-            select(ApiToken).where(ApiToken.token_hash == token_hash, ApiToken.is_active == True)
+            select(ApiToken).where(ApiToken.token_hash == token_hash, ApiToken.is_active)
         )
         return result.scalar_one_or_none()
 

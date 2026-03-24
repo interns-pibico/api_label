@@ -1,6 +1,6 @@
 import re
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 
 
 def _validate_password_strength(value: str) -> str:

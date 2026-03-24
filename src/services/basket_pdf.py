@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
@@ -65,7 +65,7 @@ def generate_basket_pdf(
         "s_subtitle", parent=styles["Normal"],
         fontSize=9, textColor=colors.HexColor("#B0C4DE"),
     )
-    s_section = ParagraphStyle(
+    ParagraphStyle(
         "s_section", parent=styles["Normal"],
         fontSize=10, textColor=STEEL_BLUE, fontName="Helvetica-Bold",
         spaceBefore=14, spaceAfter=6,
@@ -78,7 +78,7 @@ def generate_basket_pdf(
         "s_cell", parent=styles["Normal"],
         fontSize=8, textColor=DARK_TEXT, leading=11,
     )
-    s_cell_bold = ParagraphStyle(
+    ParagraphStyle(
         "s_cell_bold", parent=styles["Normal"],
         fontSize=8, textColor=DARK_TEXT, fontName="Helvetica-Bold", leading=11,
     )

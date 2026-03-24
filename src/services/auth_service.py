@@ -14,7 +14,7 @@ import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.exceptions import BadRequestException, ConflictException, CredentialsException
+from src.core.exceptions import ConflictException, CredentialsException
 from src.core.security import create_access_token, get_password_hash, verify_password
 from src.db.repositories.user_repository import UserRepository
 from src.models.users import User
