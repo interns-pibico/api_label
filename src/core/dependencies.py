@@ -11,6 +11,8 @@ from src.core.config import settings
 from src.core.exceptions import CredentialsException, ForbiddenException
 from src.core.security import decode_token
 from src.db.session import get_db
+from src.models.api_tokens import ApiToken
+from src.models.users import User
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{settings.ROOT_PATH}/api/v1/auth/login", auto_error=False
@@ -113,9 +115,6 @@ async def get_token_from_api_key(
 # ---------------------------------------------------------------------------
 # Type aliases
 # ---------------------------------------------------------------------------
-
-from src.models.users import User
-from src.models.api_tokens import ApiToken
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentActiveUser = Annotated[User, Depends(get_current_active_user)]
